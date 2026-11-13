@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v103 -->
+<!-- dmath Slate, bản web v104 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -208,6 +208,33 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 
 /* Chế độ trình chiếu: ẩn thanh công cụ, chỉ còn mặt bảng */
 body.present .bar{display:none}
+/* Ghi bài giảng: viên "đang ghi" ở góc trái trên, thanh xem lại ở đáy (thế chỗ thanh công cụ) */
+.recpill{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:10px;display:flex;align-items:center;gap:6px;padding:5px 5px 5px 12px;background:var(--chrome);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:3;opacity:.94}
+.recpill[hidden]{display:none}
+.recpill .dot{width:10px;height:10px;border-radius:50%;background:#ff4d4d;animation:recblink 1.2s infinite}
+.recpill.paused .dot{animation:none;background:var(--muted)}
+@keyframes recblink{50%{opacity:.25}}
+.recpill span{font:600 13px var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--fg)}
+.recpill button{height:36px;padding-inline:12px;border:0;border-radius:8px;background:var(--chrome-2);color:var(--fg);font:500 13px var(--font);cursor:pointer;white-space:nowrap}
+.recpill button.danger{color:var(--danger)}
+.rnote{margin:4px 2px;font-size:13px;color:var(--muted);line-height:1.5}
+.pbar{flex:none;order:2;display:flex;align-items:center;gap:8px;padding-top:8px;padding-bottom:max(8px,env(safe-area-inset-bottom,0px));padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));background:var(--chrome);border-top:1px solid var(--line)}
+.pbar[hidden]{display:none}
+.pb{flex:none;height:44px;min-width:48px;padding-inline:12px;border:0;border-radius:10px;background:var(--chrome-2);color:var(--fg);font:500 14px var(--font);cursor:pointer;white-space:nowrap}
+.pb.go,.pb.on{background:var(--accent);color:var(--on-accent)}
+#pTime{flex:none;font:500 13px var(--font);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ptrack{flex:1;min-width:80px;position:relative;height:44px;display:flex;align-items:center}
+.ptrack input{width:100%;margin:0;accent-color:var(--accent);height:28px}
+.pstrip{position:absolute;left:8px;right:8px;top:3px;height:6px;pointer-events:none}
+.pstrip i{position:absolute;top:0;height:6px}
+.pstrip .cut{background:var(--danger);opacity:.75;border-radius:2px}
+.pstrip .mk{width:3px;margin-left:-1px;background:var(--accent);border-radius:1px}
+.pname{flex:none;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)}
+.ptime{font-variant-numeric:tabular-nums}
+@media (max-width:900px){.pname{display:none}.pb{padding-inline:9px;min-width:42px}}
+body.player .bar{display:none}
+body.player .glayer{display:none}
+body.player .clayer{pointer-events:none}
 </style>
 
 <!-- Thanh công cụ nằm dưới đáy màn hình, gần tay cầm bút. Ba cụm:
@@ -249,6 +276,16 @@ body.present .bar{display:none}
   <button class="btn" id="menuBtn" title="Tuỳ chọn bảng" aria-label="Tuỳ chọn bảng"><svg viewBox="0 0 24 24" style="stroke-width:3"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg></button>
 </div>
 
+<div class="pbar" id="pbar" hidden>
+  <button class="pb" id="pClose" title="Đóng bài ghi, về lại bảng">Đóng</button>
+  <button class="pb go" id="pPlay" aria-label="Phát">▶</button>
+  <span id="pTime">0:00 / 0:00</span>
+  <div class="ptrack"><div class="pstrip" id="pStrip"></div><input type="range" id="pSeek" min="0" max="1" step="100" value="0" aria-label="Thời gian"></div>
+  <button class="pb" id="pSpeed" title="Tốc độ phát">1×</button>
+  <button class="pb" id="pListBtn" title="Các câu đã đánh dấu, các đoạn đã cắt">Mục</button>
+  <button class="pb" id="pCut" title="Cắt bỏ một đoạn lộn xộn: bấm ở đầu đoạn, tua tới cuối đoạn rồi bấm lần nữa">Cắt</button>
+  <span class="pname" id="pName"></span>
+</div>
 <div class="stage" id="stage">
   <canvas id="main"></canvas>
   <canvas id="ov"></canvas>
@@ -293,6 +330,7 @@ body.present .bar{display:none}
     </div>
     <button class="row" id="webBtn" style="margin-top:8px" hidden>Mở trang web trong bảng</button>
     <button class="row" id="fullBtn" style="margin-top:8px">Toàn màn hình <small>ẩn thanh công cụ và khung trình duyệt</small></button></div>
+    <div><h3>Bài giảng</h3><button class="row" id="recBtn">Ghi bài giảng <small>tiếng và nét bút</small></button><button class="row" id="recsBtn" style="margin-top:8px">Bài ghi đã lưu <small>xem lại, gửi học sinh</small></button></div>
     <div id="exportBox" hidden><h3>Xuất bảng</h3><div class="chips">
       <button class="chip" id="expPdf">PDF cả bảng</button>
       <button class="chip" id="expPng">Ảnh trang này</button>
@@ -418,6 +456,14 @@ body.present .bar{display:none}
 
   <textarea id="ted" hidden autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Nội dung chữ"></textarea>
 
+  <div class="recpill" id="recpill" hidden><i class="dot"></i><span id="recTime">0:00</span><button id="recPause">Tạm dừng</button><button id="recMarkBtn" title="Đánh dấu đầu một câu để lúc xem lại tua nhanh tới">Đánh dấu</button><button id="recStop" class="danger">Dừng</button></div>
+  <div class="menu books" id="recs" hidden>
+    <h3 style="margin:0">Bài ghi đã lưu</h3>
+    <div class="rows" id="recList"></div>
+    <div class="chips"><button class="chip go" id="recNew">Ghi bài giảng mới</button><button class="chip" id="recOpen">Mở bài ghi từ tệp</button></div>
+    <input type="file" id="recIn" hidden>
+  </div>
+  <div class="menu" id="pList" hidden><h3>Mục đã đánh dấu</h3><div class="rows" id="pMarks"></div><div class="chips" style="margin-top:8px"><button class="chip go" id="pAddMark">Đánh dấu chỗ này</button></div></div>
   <div class="selbar" id="clipbar" style="left:50%;top:10px" hidden>
     <span>Đã chụp.</span>
     <button id="clipSave">Lưu ảnh</button>
@@ -806,6 +852,7 @@ function renderOverlay(){
   for (const l of lasers) drawLaser(octx, l, 1 - (now - l.end) / CONFIG.LASER_MS);
   for (const t of kit) drawKit(octx, t);             // thước, êke, thước đo độ nằm dưới nét đang vẽ
   if (cur) cur.tool === 'laser' ? drawLaser(octx, cur, 1) : drawStroke(octx, cur);
+  if (player) playLive(octx);                         // đang xem lại bài ghi: vẽ nét đang chạy ra
   if (lasso) {                                       // đường khoanh đang kéo
     octx.beginPath(); octx.moveTo(lasso[0], lasso[1]);
     for (let i = 2; i < lasso.length; i += 2) octx.lineTo(lasso[i], lasso[i + 1]);
@@ -5329,6 +5376,7 @@ function applyText(snap, id){                         // dùng cho hoàn tác/l�
 
 /* ---------- Hoàn tác / làm lại ---------- */
 function undo(){
+  if (player) return;
   commitText();
   const a = undoStack.pop(); if (!a) return;
   setSel([]);
@@ -5350,6 +5398,7 @@ function undo(){
   redoStack.push(a); syncGraphs(); changed();
 }
 function redo(){
+  if (player) return;
   commitText();
   const a = redoStack.pop(); if (!a) return;
   setSel([]);
@@ -5374,7 +5423,8 @@ function redo(){
 /* ---------- Bút, chuột, ngón tay ---------- */
 const touches = new Map(); let gPrev = null;
 ov.addEventListener('pointerdown', e => {
-  $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
+  if (player) { $('pList').hidden = true; return; }    // đang xem lại bài ghi: không viết vẽ gì lên bảng
+  $('recs').hidden = true; $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
   if (ed) { if (e.pointerType === 'touch' && performance.now() - lastPen < 400) return; commitText(); return; }   // đang gõ chữ: chạm ra bảng là xong
   if (e.pointerType === 'touch') {
     const penBusy = (activeId !== null && !activeIsTouch) || performance.now() - lastPen < 400;
@@ -5430,7 +5480,7 @@ ov.addEventListener('pointercancel', pointerEnd);
 /* Safari iPad đôi khi không đưa ngón thứ hai qua pointer events: bắt thêm bằng sự kiện cảm ứng gốc cho cử chỉ hai ngón (cuộn + chụm/giãn) */
 let tg = null;
 const tsnap = e => { const a = e.touches[0], b = e.touches[1]; return { cx:(a.clientX + b.clientX) / 2, cy:(a.clientY + b.clientY) / 2, d:Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) }; };
-ov.addEventListener('touchstart', e => { if (e.touches.length === 2) { e.preventDefault(); if (activeId !== null && activeIsTouch) cancelCur(); if (activeId === null) tg = tsnap(e); } }, { passive:false });
+ov.addEventListener('touchstart', e => { if (player && player.playing) return; if (e.touches.length === 2) { e.preventDefault(); if (activeId !== null && activeIsTouch) cancelCur(); if (activeId === null) tg = tsnap(e); } }, { passive:false });
 ov.addEventListener('touchmove', e => {
   if (e.touches.length !== 2) return; e.preventDefault(); if (activeId !== null) return;
   const sn = tsnap(e);
@@ -5460,7 +5510,7 @@ function gesture(e){                                 // một ngón: cuộn (khi
   clampView(); if (!gPrev.z) snapPan(); updateNav(); invalidate(gPrev.z ? true : 'pan');
 }
 stage.addEventListener('wheel', e => {
-  e.preventDefault(); cancelAnimationFrame(anim);
+  e.preventDefault(); if (player && player.playing) return; cancelAnimationFrame(anim);
   if (e.ctrlKey) zoomAt(e.clientX - left, e.clientY - topPx, Math.exp(-e.deltaY * 0.01));
   else { view.tx -= e.deltaX; view.ty -= e.deltaY; }
   clampView(); if (!e.ctrlKey) snapPan(); updateNav(); invalidate(e.ctrlKey ? true : 'pan'); scheduleSave();
@@ -5695,6 +5745,7 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 document.addEventListener('webkitfullscreenchange', () => { if (!document.webkitFullscreenElement) setPresent(false); });
 $('exit').onclick = () => { setPresent(false); const ex = document.exitFullscreen || document.webkitExitFullscreen; if (ex && (document.fullscreenElement || document.webkitFullscreenElement)) { try { ex.call(document); } catch (_) {} } };
 document.addEventListener('keydown', e => {
+  if (player) { if (e.key === ' ' && e.target.tagName !== 'INPUT') { e.preventDefault(); playPause(); } return; }   // đang xem lại: phím cách để phát / dừng
   if (e.target.tagName === 'TEXTAREA') { if (e.key === 'Escape') commitText(); return; }
   if (e.target.tagName === 'INPUT') { if (e.key === 'Escape') $('gedit').hidden = true; return; }   // đang gõ công thức: không bắt phím tắt
   const k = e.key.toLowerCase();
@@ -6026,7 +6077,7 @@ function boardData(){
 function scheduleSave(){ clearTimeout(saveT); saveT = setTimeout(() => activeId !== null ? scheduleSave() : save(), 2500); }   // lưu sau 2,5 giây yên (lâu hơn trước để lúc ngừng tay suy nghĩ rồi viết tiếp không bị khựng); đang viết dở thì hoãn tiếp để nét bút không khựng
 function save(){                                      // lưu sổ đang mở; các lần lưu xếp hàng nối nhau để không ghi đè lộn thứ tự
   clearTimeout(saveT);
-  if (!ready) return saving;
+  if (!ready || player) return saving;                // đang xem lại bài ghi: bảng đang hiện là của bài ghi, tuyệt đối không lưu đè lên sổ
   try { localStorage.setItem(PREF_KEY, JSON.stringify({ slot, sizeIdx, eraseIdx, showTip, tipStyle, pressureOn, erasePart, customCol, autoScroll, penW, hlW, penA, hlA, penDash, penGap, exportPaper })); } catch (_) {}
   const b = books.find(x => x.id === curId), id = curId, data = boardData();
   if (b) { b.updated = Date.now(); b.pages = pageCount(); }
@@ -6163,6 +6214,342 @@ $('bookImport').onclick = () => $('bookIn').click();
 $('bookIn').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importBook(f); };
 
 /* ---------- Khởi động ---------- */
+/* ---------- Ghi bài giảng: ghi tiếng + diễn biến trên bảng, xem lại, đánh dấu câu, cắt đoạn, xuất tệp gửi học sinh ----------
+   Cách ghi: cứ 0,1 giây app "chụp" trạng thái bảng một lần và chỉ ghi lại phần THAY ĐỔI so với lần trước:
+     - nét nào mới thêm, nét nào mất đi (tẩy, dời, đổi màu đều quy về "mất nét cũ, thêm nét mới");
+     - phần còn lại của bảng (chữ gõ, ảnh, màn che, mô hình, màu bảng) nếu có đổi;
+     - bảng đang cuộn / phóng tới đâu;
+     - nét đang viết dở đã dài tới điểm thứ mấy (để lúc xem lại nét chạy ra dần theo tay viết).
+   Tiếng giảng ghi bằng micro của máy. Lúc xem lại, tiếng là đồng hồ chính, bảng được dựng lại đúng theo thời điểm đang nghe. */
+const RECCFG = {
+  TICK: 100,              // bao lâu chụp trạng thái bảng một lần (mili giây)
+  KEEP_MS: 20000,         // bao lâu cất tạm bài đang ghi vào kho một lần, phòng khi app bị tắt giữa chừng
+  AUDIO_BPS: 40000,       // độ nén tiếng (bit mỗi giây): 40000 đủ rõ giọng nói, một buổi 90 phút khoảng 27 MB
+};
+let rec = null;           // bài đang ghi (null: không ghi)
+let player = null;        // bài đang xem lại (null: không xem)
+let recIndex = [];        // danh sách bài ghi đã lưu: [{id, name, dur, date, sound, partial}]
+const fmtT = ms => { const s = Math.max(0, Math.round(ms / 1000)), z = v => String(v).padStart(2, '0'), h = Math.floor(s / 3600); return (h ? h + ':' + z(Math.floor(s / 60) % 60) : Math.floor(s / 60)) + ':' + z(s % 60); };
+const recNow = () => rec.acc + (rec.paused ? 0 : performance.now() - rec.since);    // thời gian đã ghi (mili giây), không tính lúc tạm dừng
+async function recLoadIndex(){ recIndex = (await storeGet('rec-index')) || []; }
+function recSaveIndex(){ return storePut('rec-index', recIndex); }
+
+/* ----- Ghi ----- */
+function recPackStroke(s){                            // gói một nét cho gọn: toạ độ giữ 1 số lẻ
+  const p = s.pts, q = new Array(p.length);
+  for (let i = 0; i < p.length; i += 4) { q[i] = Math.round(p[i] * 10) / 10; q[i + 1] = Math.round(p[i + 1] * 10) / 10; q[i + 2] = Math.round(p[i + 2] * 100) / 100; q[i + 3] = Math.round(p[i + 3]) || 0; }
+  return { tool:s.tool, slot:s.slot, col:s.col, size:s.size, line:s.line, flat:s.flat, poly:s.poly, dash:s.dash, gap:s.gap, grp:s.grp, lock:s.lock || undefined, alpha:s.alpha, pts:q };
+}
+const recSig = s => { const p = s.pts, n = p.length; return n + '|' + p[0] + '|' + p[1] + '|' + p[n - 4] + '|' + p[n - 3] + '|' + s.size + '|' + s.slot + '|' + (s.col || '') + '|' + (s.lock ? 1 : 0) + '|' + (s.alpha || '') + '|' + (s.dash || '') + '|' + (s.gap || ''); };   // "dấu vân tay" của một nét: đổi chỗ, đổi cỡ, đổi màu là dấu đổi
+function recRest(){                                   // phần còn lại của bảng ngoài nét viết; mỗi mô hình cất riêng để lần nào không đổi thì không ghi lại
+  const R = rec, D = R.data;
+  const gs = graphs.map(g => { const k = JSON.stringify({ id:g.id, x:g.x, y:g.y, w:g.w, h:g.h, unit:g.unit, ox:g.ox, oy:g.oy, fns:g.fns, params:g.params, kind:g.kind, m:g.m }); let i = R.gsMap.get(k); if (i === undefined) { i = D.gs.length; D.gs.push(JSON.parse(k)); R.gsMap.set(k, i); } return i; });
+  for (const m of images) R.imgIds.add(m.id);
+  if (bg) R.hadBg = true;
+  return { board, pattern, bgMap:bg ? bg.map.slice() : undefined, bgPaper:bg ? !!bg.paper : undefined,
+    images:images.map(m => ({ id:m.id, x:m.x, y:m.y, w:m.w, h:m.h, inv:!!m.inv })), covers:covers.map(c => ({ id:c.id, x:c.x, y:c.y, w:c.w, h:c.h })), texts:texts.map(textCopy), graphs:gs };
+}
+function recTick(force){                              // một lần "chụp": ghi lại những gì đã đổi
+  const R = rec; if (!R || (R.paused && !force)) return;
+  const t = Math.round(recNow()), D = R.data;
+  // 1) bảng đang cuộn / phóng tới đâu
+  const s = S(), v = [Math.round(-view.tx / s), Math.round(-view.ty / s), Math.round(view.zoom * 1000) / 1000], vk = v.join();
+  if (vk !== R.viewKey) { if (R.viewVal && t - R.viewT > RECCFG.TICK * 1.5) D.views.push(Math.max(R.viewT, t - RECCFG.TICK), ...R.viewVal); D.views.push(t, ...v); R.viewKey = vk; R.viewVal = v; R.viewT = t; }
+  // 2) nét đang viết dở (kể cả bút laser): đã dài tới điểm thứ mấy
+  const c = cur && mode === 'draw' ? cur : null;
+  if (R.live && R.live.obj !== c) { const L = R.live; R.live = null; L.rec.t1 = t; L.rec.pts = recPackStroke(L.obj).pts; if (L.rec.prog.length >= 2) { D.lives.push(L.rec); R.liveObjs.push(L); } }
+  if (c && !R.live) R.live = { obj:c, rec:{ tool:c.tool, slot:c.slot, col:c.col, size:c.size, alpha:c.alpha, dash:c.dash, gap:c.gap, t0:t, t1:0, prog:[], pts:null } };
+  if (R.live) { const n = c.pts.length >> 2, pr = R.live.rec.prog; if (!pr.length || pr[pr.length - 1] !== n) pr.push(t, n); }
+  if (c && !force && !R.liveObjs.length && strokes.length === R.prevIds.length) return;
+  if (!force && ((R.n = (R.n | 0) + 1) & 1) && !R.liveObjs.length && strokes.length === R.prevIds.length) return;   // bảng yên: so sánh toàn bảng thưa đi một nửa (0,2 giây một lần) cho nhẹ máy   // đang viết dở thì ngoài nét đó ra không có gì đổi
+  // 3) nét trên bảng: thêm / mất so với lần chụp trước
+  const ids = [];
+  for (const st of strokes) { let e = R.wm.get(st); const sg = recSig(st); if (!e || e.sig !== sg) { e = { id:D.items.length, sig:sg }; D.items.push(recPackStroke(st)); R.wm.set(st, e); } ids.push(e.id); }
+  for (const L of R.liveObjs) { const e = R.wm.get(L.obj); if (e && D.items[e.id].pts.length === L.rec.pts.length) { L.rec.ref = e.id; L.rec.pts = null; } }   // nét viết xong đã nằm trên bảng: khỏi cất hai lần
+  R.liveObjs.length = 0;
+  const prev = R.prevIds; let same = prev.length === ids.length; if (same) for (let i = 0; i < ids.length; i++) if (prev[i] !== ids[i]) { same = false; break; }
+  let fr = null;
+  if (!same) {
+    const ps = new Set(prev), ns = new Set(ids), a = ids.filter(i => !ps.has(i)), d = prev.filter(i => !ns.has(i)), merged = prev.filter(i => ns.has(i)).concat(a);
+    let ord = false; for (let i = 0; i < ids.length; i++) if (merged[i] !== ids[i]) { ord = true; break; }
+    fr = { t, a, d }; if (ord) fr.o = ids.slice();    // o: thứ tự trên dưới của các nét bị đảo thì ghi nguyên danh sách
+    R.prevIds = ids;
+  }
+  // 4) phần còn lại của bảng
+  const rest = recRest(), key = JSON.stringify(rest); let ri = R.restMap.get(key);
+  if (ri === undefined) { ri = D.rests.length; D.rests.push(rest); R.restMap.set(key, ri); }
+  if (ri !== R.restIdx) { fr = fr || { t }; fr.r = ri; R.restIdx = ri; }
+  if (fr) D.frames.push(fr);
+}
+async function recStart(){
+  if (rec || player || !ready) return;
+  commitText(); $('menu').hidden = true; $('recs').hidden = true;
+  let stream = null, mr = null, mime = '';
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } }); } catch (_) {}
+  if (stream && window.MediaRecorder) {
+    for (const m of ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']) if (MediaRecorder.isTypeSupported(m)) { mime = m; break; }   // audio/mp4: iPad ghi kiểu này, máy nào cũng nghe được
+    try { mr = new MediaRecorder(stream, mime ? { mimeType:mime, audioBitsPerSecond:RECCFG.AUDIO_BPS } : { audioBitsPerSecond:RECCFG.AUDIO_BPS }); } catch (_) { mr = null; }
+  }
+  if (!mr && stream) { stream.getTracks().forEach(x => x.stop()); stream = null; }
+  const b = books.find(x => x.id === curId), id = newId();
+  rec = { id, name:(b ? b.name : 'Bài giảng') + ' ' + stamp(Date.now()), book:curId, acc:0, since:performance.now(), paused:false, mr, stream, mime:mr ? (mr.mimeType || mime) : '', chunks:[], nSaved:0,
+    data:{ v:1, W:CONFIG.WORLD_W, items:[], frames:[], rests:[], gs:[], views:[], lives:[], marks:[], cuts:[] },
+    wm:new WeakMap(), prevIds:[], restIdx:-1, restMap:new Map(), gsMap:new Map(), imgIds:new Set(), hadBg:false, live:null, liveObjs:[], viewKey:'', viewVal:null, viewT:0, timer:0, keepT:0 };
+  if (mr) {
+    mr.ondataavailable = e => { if (e.data && e.data.size && rec && rec.id === id) { const k = rec.chunks.length; rec.chunks.push(e.data); idb('readwrite', st => st.put(e.data, 'rec-' + id + '-a' + k)).catch(() => {}); } };
+    mr.start(3000);                                   // cứ 3 giây nhả ra một khúc tiếng để cất dần
+  }
+  recIndex.unshift({ id, name:rec.name, dur:0, date:Date.now(), sound:!!mr, partial:true }); recSaveIndex();
+  recTick(true); if (rec.data.frames[0]) rec.data.frames[0].t = 0; if (rec.data.views.length) rec.data.views[0] = 0;   // lần chụp đầu tiên tính là giây thứ 0
+  rec.timer = setInterval(() => { recTick(); recPill(); }, RECCFG.TICK);
+  rec.keepT = setInterval(recKeep, RECCFG.KEEP_MS);
+  recPill(); $('recpill').hidden = false;
+  toast(mr ? 'Đang ghi bài giảng: tiếng và nét bút.' : 'Không dùng được micro: bài ghi sẽ KHÔNG có tiếng. Thầy kiểm tra quyền micro của trang trong Cài đặt Safari.', false, mr ? 3200 : 7000);
+}
+function recKeep(){                                   // cất tạm phần đã ghi (đợi lúc bút nhấc để nét không khựng)
+  const R = rec; if (!R) return; if (activeId !== null) { setTimeout(() => { if (rec === R && activeId === null) recKeep(); }, 1500); return; }
+  idb('readwrite', st => st.put({ name:R.name, book:R.book, mime:R.mime, dur:Math.round(recNow()), data:R.data, imgIds:[...R.imgIds], hadBg:R.hadBg }, 'rec-' + R.id + '-d')).catch(() => {});
+}
+function recPause(){
+  const R = rec; if (!R) return;
+  if (!R.paused) { recTick(true); R.acc = recNow(); R.paused = true; try { if (R.mr && R.mr.state === 'recording') R.mr.pause(); } catch (_) {} }
+  else { R.since = performance.now(); R.paused = false; try { if (R.mr && R.mr.state === 'paused') R.mr.resume(); } catch (_) {} }
+  recPill();
+}
+function recMark(){ const R = rec; if (!R) return; const n = R.data.marks.length + 1; R.data.marks.push({ t:Math.round(recNow()), label:'Câu ' + n }); toast('Đã đánh dấu: Câu ' + n + ' (đổi tên được khi xem lại).'); recPill(); }
+function recPill(){
+  const R = rec; if (!R) return;
+  $('recTime').textContent = fmtT(recNow()) + (R.mr ? '' : ' · không tiếng');
+  $('recpill').classList.toggle('paused', R.paused); $('recPause').textContent = R.paused ? 'Ghi tiếp' : 'Tạm dừng';
+}
+async function recGather(book, imgIds, hadBg){        // gom ảnh và nền PDF mà bài ghi có dùng, để xem lại không phụ thuộc vào sổ gốc
+  const imgs = [];
+  for (const iid of imgIds) { try { const blob = await idb('readonly', st => st.get(imgKey(iid, book))); if (blob) imgs.push({ id:iid, blob }); } catch (_) {} }
+  let bgd = null; if (hadBg) { try { const r = await idb('readonly', st => st.get('bg-' + book)); if (r && r.data) bgd = { name:r.name, data:r.data }; } catch (_) {} }
+  return { imgs, bgd };
+}
+async function recStop(){
+  const R = rec; if (!R) return;
+  clearInterval(R.timer); clearInterval(R.keepT);
+  recTick(true);
+  const dur = Math.round(recNow());
+  $('recpill').hidden = true; toast('Đang lưu bài ghi…', true);
+  if (R.mr) { await new Promise(ok => { R.mr.onstop = ok; try { R.mr.stop(); } catch (_) { ok(); } setTimeout(ok, 4000); }); R.stream.getTracks().forEach(x => x.stop()); }
+  rec = null;
+  const audio = R.chunks.length ? new Blob(R.chunks, { type:R.mime || R.chunks[0].type }) : null;
+  const { imgs, bgd } = await recGather(R.book, R.imgIds, R.hadBg);
+  const meta = { id:R.id, name:R.name, dur, date:Date.now(), sound:!!audio };
+  try {
+    await idb('readwrite', st => st.put({ meta, data:R.data, audio, images:imgs, bg:bgd }, 'rec-' + R.id));
+    recIndex = recIndex.map(x => x.id === R.id ? meta : x); await recSaveIndex();
+    recDropParts(R.id);
+    toast(`Đã lưu bài ghi "${R.name}" (${fmtT(dur)}). Mở lại trong menu ⋯ → Bài ghi đã lưu.`, false, 6000);
+  } catch (_) { toast('Chưa lưu được bài ghi: kho của trình duyệt đầy hoặc bị chặn.', false, 6000); }
+}
+async function recDropParts(id){                      // dọn các khúc cất tạm của một bài ghi
+  try { const keys = await idb('readonly', st => st.getAllKeys()); for (const k of keys) if (typeof k === 'string' && (k.startsWith('rec-' + id + '-a') || k === 'rec-' + id + '-d')) idb('readwrite', st => st.delete(k)).catch(() => {}); } catch (_) {}
+}
+async function recRecover(){                          // lúc mở app: bài nào đang ghi dở mà app bị tắt thì ráp lại từ các khúc đã cất tạm
+  let n = 0;
+  for (const m of recIndex.filter(x => x.partial)) {
+    try {
+      const d = await idb('readonly', st => st.get('rec-' + m.id + '-d'));
+      if (!d || !d.data) { recIndex = recIndex.filter(x => x !== m); recDropParts(m.id); continue; }
+      const chunks = []; for (let k = 0; ; k++) { const c = await idb('readonly', st => st.get('rec-' + m.id + '-a' + k)); if (!c) break; chunks.push(c); }
+      const audio = chunks.length ? new Blob(chunks, { type:d.mime || chunks[0].type }) : null, { imgs, bgd } = await recGather(d.book, d.imgIds || [], d.hadBg);
+      const meta = { id:m.id, name:m.name + ' (khôi phục)', dur:d.dur, date:m.date, sound:!!audio };
+      await idb('readwrite', st => st.put({ meta, data:d.data, audio, images:imgs, bg:bgd }, 'rec-' + m.id));
+      recIndex = recIndex.map(x => x.id === m.id ? meta : x); recDropParts(m.id); n++;
+    } catch (_) {}
+  }
+  if (recIndex.some(x => x.partial) || n) { recIndex = recIndex.filter(x => !x.partial); await recSaveIndex(); }
+  if (n) toast(`Đã khôi phục ${n} bài ghi dở từ lần trước (xem trong menu ⋯ → Bài ghi đã lưu).`, false, 7000);
+}
+
+/* ----- Danh sách bài ghi ----- */
+let recRen = null, recDel = null;                     // bài đang đổi tên; bài đang chờ bấm "Xoá thật?"
+function renderRecs(){
+  $('recList').innerHTML = recIndex.length ? recIndex.map(m => m.id === recRen
+    ? `<div class="brow gf" data-id="${m.id}"><input type="text" id="recRenIn" maxlength="80" value="${esc(m.name)}" autocomplete="off" spellcheck="false" aria-label="Tên bài ghi"><button data-b="save">Lưu</button></div>`
+    : `<div class="brow" data-id="${m.id}"><button class="bopen" data-b="open"><b>${esc(m.name)}</b><small>${fmtT(m.dur)} · ${stamp(m.date)}${m.sound ? '' : ' · không tiếng'}${m.partial ? ' · đang ghi' : ''}</small></button><button data-b="exp" title="Xuất thành tệp để gửi học sinh">Gửi</button><button data-b="ren">Tên</button><button data-b="del" class="danger">${recDel === m.id ? 'Xoá thật?' : 'Xoá'}</button></div>`
+  ).join('') : '<p class="rnote">Chưa có bài ghi nào. Bấm "Ghi bài giảng mới" rồi giảng như bình thường; xong bấm Dừng.</p>';
+  $('recNew').textContent = rec ? 'Đang ghi…' : 'Ghi bài giảng mới';
+}
+function openRecs(){ $('menu').hidden = true; recRen = recDel = null; renderRecs(); $('recs').hidden = false; }
+async function recDelete(id){ recIndex = recIndex.filter(x => x.id !== id); await recSaveIndex(); idb('readwrite', st => st.delete('rec-' + id)).catch(() => {}); recDropParts(id); renderRecs(); }
+async function recExport(id){                         // gói bài ghi thành MỘT tệp: phần đầu ghi độ dài, rồi dữ liệu bảng (JSON), rồi tiếng
+  try {
+    toast('Đang gói bài ghi…', true);
+    const R = await idb('readonly', st => st.get('rec-' + id)); if (!R) throw 0;
+    const pack = { app:'dmath-slate-rec', v:1, meta:R.meta, data:R.data, images:[], bg:null, audioType:R.audio ? R.audio.type : '' };
+    for (const im of R.images || []) pack.images.push({ id:im.id, type:im.blob.type, b64:await toB64(im.blob) });
+    if (R.bg) pack.bg = { name:R.bg.name, b64:await toB64(new Blob([R.bg.data])) };
+    const js = new Blob([JSON.stringify(pack)]), head = 'DMREC1 ' + String(js.size).padStart(12, '0') + '\n';
+    const data = new Blob([head, js, ...(R.audio ? [R.audio] : [])], { type:'application/octet-stream' }), filename = R.meta.name.replace(/[\\/:*?"<>|]/g, '-').trim() + '.dmathrec';
+    if (downloads) await downloads.save({ filename, data }); else if (STANDALONE) await webSave(filename, data); else throw { code:'unavailable' };
+    toast('Đã xuất ' + filename + '. Gửi tệp này cho học sinh; các em mở trang bảng → ⋯ → Bài ghi đã lưu → Mở bài ghi từ tệp.', false, 8000);
+  } catch (e) { if (!e || e.code !== 'declined') toast('Chưa xuất được bài ghi ở chế độ xem này.'); else $('toast').hidden = true; }
+}
+async function recImport(file){
+  try {
+    toast('Đang mở bài ghi…', true);
+    const head = await file.slice(0, 20).text(); if (!head.startsWith('DMREC1 ')) throw 0;
+    const n = parseInt(head.slice(7, 19), 10), pack = JSON.parse(await file.slice(20, 20 + n).text());
+    if (!pack || pack.app !== 'dmath-slate-rec' || !pack.data) throw 0;
+    const audio = file.size > 20 + n ? file.slice(20 + n, file.size, pack.audioType || 'audio/mp4') : null;
+    const id = newId(), meta = { id, name:String(pack.meta.name || 'Bài ghi').slice(0, 80), dur:pack.meta.dur, date:pack.meta.date || Date.now(), sound:!!audio };
+    const R = { meta, data:pack.data, audio, images:(pack.images || []).map(im => ({ id:im.id, blob:fromB64(im.b64, im.type) })), bg:pack.bg ? { name:pack.bg.name, data:await fromB64(pack.bg.b64).arrayBuffer() } : null };
+    try { await idb('readwrite', st => st.put(R, 'rec-' + id)); recIndex.unshift(meta); await recSaveIndex(); } catch (_) {}   // không cất được vào kho thì vẫn cho xem lần này
+    $('toast').hidden = true; await playEnter(R);
+  } catch (_) { toast('Tệp này không phải bài ghi của dmath Slate (đuôi .dmathrec).'); }
+}
+
+/* ----- Xem lại ----- */
+function playObj(id){ const P = player; let o = P.objs[id]; if (!o) { o = P.objs[id] = { ...P.D.items[id] }; computeBB(o); } return o; }
+function playRest(rest){                              // đổ phần "còn lại của bảng" (chữ, ảnh, màn che, mô hình, màu bảng) lên bảng
+  const P = player, keep = strokes, v = { z:view.zoom, x:view.tx, y:view.ty };
+  applyBoard({ board:rest.board, pattern:rest.pattern, strokes:[], bgMap:rest.bgMap, bgPaper:rest.bgPaper, images:rest.images, covers:rest.covers, texts:rest.texts, graphs:rest.graphs.map(i => JSON.parse(JSON.stringify(P.D.gs[i]))) });
+  pendingBgMap = null; strokes = keep; view.zoom = v.z; view.tx = v.x; view.ty = v.y;
+  for (const im of images) im.pic = P.pics.get(im.id) || null;
+  if (bg && Array.isArray(rest.bgMap)) { bg.map = rest.bgMap.slice(); bg.paper = !!rest.bgPaper; }
+  syncGraphs(); syncCovers(); updateUI();
+}
+function playApply(t){                                // dựng bảng đúng như lúc bài ghi ở thời điểm t (mili giây)
+  const P = player, D = P.D, F = D.frames; let dirty = false, restCh = false;
+  let idx = P.fi; if (idx >= 0 && F[idx].t > t) { idx = -1; P.fi = -1; P.ids = []; P.ri = -1; dirty = true; }   // tua lùi: dựng lại từ đầu
+  while (idx + 1 < F.length && F[idx + 1].t <= t) {
+    const fr = F[++idx];
+    if (fr.o) P.ids = fr.o.slice(); else { if (fr.d && fr.d.length) { const ds = new Set(fr.d); P.ids = P.ids.filter(i => !ds.has(i)); } if (fr.a && fr.a.length) P.ids = P.ids.concat(fr.a); }
+    if (fr.r !== undefined && fr.r !== P.ri) { P.ri = fr.r; restCh = true; }
+    dirty = true;
+  }
+  P.fi = idx;
+  if (dirty) strokes = P.ids.map(playObj);
+  if (P.ri >= 0 && P.riShown !== P.ri) { P.riShown = P.ri; playRest(D.rests[P.ri]); restCh = true; } else restCh = false;
+  // bảng cuộn / phóng tới đâu: lấy hai mốc ghi gần nhất rồi nội suy cho mượt
+  const V = D.views; let i = P.vi; if (i * 4 >= V.length || V[i * 4] > t) i = 0; while ((i + 1) * 4 < V.length && V[(i + 1) * 4] <= t) i++; P.vi = i;
+  let vch = false;
+  if (V.length && (P.playing || P.follow)) {
+    let x = V[i * 4 + 1], y = V[i * 4 + 2], z = V[i * 4 + 3];
+    if ((i + 1) * 4 < V.length && V[i * 4] <= t) { const t0 = V[i * 4], t1 = V[(i + 1) * 4], u = clamp((t - t0) / Math.max(1, t1 - t0), 0, 1); if (t1 - t0 <= RECCFG.TICK * 3) { x += (V[i * 4 + 5] - x) * u; y += (V[i * 4 + 6] - y) * u; z += (V[i * 4 + 7] - z) * u; } }
+    const zc = clamp(z, CONFIG.ZOOM_MIN, CONFIG.ZOOM_MAX), zoomCh = Math.abs(zc - view.zoom) > 1e-4; view.zoom = zc;
+    const s = S(), tx = -x * s, ty = -y * s; if (zoomCh || Math.abs(tx - view.tx) > 0.2 || Math.abs(ty - view.ty) > 0.2) { view.tx = tx; view.ty = ty; clampView(); vch = true; if (zoomCh) dirty = true; }
+  }
+  // nét đang viết dở tại thời điểm t
+  const act = []; for (const L of D.lives) { if (L.t0 > t) continue; const tail = L.tool === 'laser' ? CONFIG.LASER_MS : 0; if (t < L.t1 + tail) act.push(L); }
+  const liveCh = act.length || P.liveN; P.live = act; P.liveN = act.length; P.t = t;
+  if (dirty || restCh) invalidate(true); else if (vch) invalidate('pan'); else if (liveCh) invalidate(false);
+  if (vch || dirty) updateNav();
+}
+function playLive(c){                                 // vẽ các nét đang viết dở (gọi từ lớp vẽ phủ, lúc đang xem lại)
+  const P = player, t = P.t;
+  for (const L of P.live) {
+    const pts = L.ref != null ? P.D.items[L.ref].pts : L.pts; if (!pts) continue;
+    const pr = L.prog; let n = pr[1]; for (let i = 0; i < pr.length; i += 2) { if (pr[i] <= t) { n = pr[i + 1]; if (i + 2 < pr.length && pr[i + 2] > t) n += (pr[i + 3] - n) * (t - pr[i]) / Math.max(1, pr[i + 2] - pr[i]); } else break; }
+    n = Math.min(Math.max(1, Math.round(n)), pts.length >> 2);
+    const st = { tool:L.tool, slot:L.slot, col:L.col, size:L.size, alpha:L.alpha, dash:L.dash, gap:L.gap, pts:t >= L.t1 ? pts : pts.slice(0, n * 4) };
+    if (L.tool === 'laser') drawLaser(c, st, t < L.t1 ? 1 : clamp(1 - (t - L.t1) / CONFIG.LASER_MS, 0, 1)); else drawStroke(c, st);
+  }
+}
+async function playEnter(R){
+  if (rec) { toast('Đang ghi bài giảng: bấm Dừng trước rồi mới xem lại được.'); return; }
+  if (player || !ready) return;
+  commitText(); await save();                         // cất sổ đang mở trước; từ đây đến lúc đóng, app KHÔNG tự lưu (xem hàm save)
+  $('menu').hidden = true; $('recs').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
+  const P = player = { R, D:R.data, t:0, fi:-1, ids:[], ri:-1, riShown:-2, vi:0, objs:[], pics:new Map(), live:[], liveN:0, audio:null, url:'', playing:false, follow:true, speed:1, clock0:0, tAt:0, raf:0, cutFrom:null, dur:R.meta.dur };
+  for (const im of R.images || []) { try { P.pics.set(im.id, await loadPic(im.blob)); } catch (_) {} }
+  resetBoard(); document.body.classList.add('player'); setPresent(false);
+  if (R.bg) { try { await openPdf(R.bg.data, R.bg.name, true); } catch (_) {} }
+  if (R.audio) { P.url = URL.createObjectURL(R.audio); P.audio = new Audio(P.url); P.audio.preload = 'auto'; P.audio.onended = () => { if (player === P && P.playing && P.t >= P.dur - 500) playPause(); }; }
+  $('pName').textContent = R.meta.name; $('pSeek').max = P.dur; $('pSeek').value = 0; $('pbar').hidden = false; $('pList').hidden = true;
+  playApply(0); playUI(); playStrip();
+  toast(R.audio ? 'Bấm ▶ để xem lại. Kéo thanh thời gian hoặc chọn mục đã đánh dấu để tua.' : 'Bài ghi này không có tiếng. Bấm ▶ để xem lại nét viết.', false, 5000);
+}
+async function playExit(){
+  const P = player; if (!P) return;
+  cancelAnimationFrame(P.raf); if (P.audio) { P.audio.pause(); P.audio.src = ''; URL.revokeObjectURL(P.url); }
+  player = null; document.body.classList.remove('player'); $('pbar').hidden = true; $('pList').hidden = true;
+  ready = false; await loadBoard(curId); ready = true;   // trả lại sổ đang mở lúc trước
+}
+function playTime(){ const P = player; return P.audio && P.playing && !P.noAudio ? P.audio.currentTime * 1000 : P.playing ? P.tAt + (performance.now() - P.clock0) * P.speed : P.t; }
+function playSeek(t){
+  const P = player; if (!P) return; t = clamp(t, 0, P.dur);
+  for (const c of P.D.cuts) if (t >= c[0] && t < c[1] && P.cutFrom === null) { t = Math.min(P.dur, c[1]); break; }   // rơi vào đoạn đã cắt: nhảy qua (trừ lúc đang chọn đoạn cắt mới)
+  P.tAt = t; P.clock0 = performance.now(); if (P.audio && !P.noAudio) { try { P.audio.currentTime = t / 1000; } catch (_) {} }
+  P.follow = true; playApply(t); playUI();
+}
+function playPause(){
+  const P = player; if (!P) return;
+  if (P.playing) { const t = playTime(); P.playing = false; cancelAnimationFrame(P.raf); if (P.audio) P.audio.pause(); P.t = P.tAt = t; playUI(); return; }
+  if (P.t >= P.dur - 50) playSeek(0);
+  P.tAt = P.t; P.clock0 = performance.now(); P.playing = true; P.follow = true;
+  if (P.audio && !P.noAudio) { P.audio.playbackRate = P.speed; try { P.audio.currentTime = P.t / 1000; } catch (_) {} const pr = P.audio.play(); if (pr && pr.catch) pr.catch(() => { if (player === P) { P.noAudio = true; P.tAt = P.t; P.clock0 = performance.now(); toast('Máy này không phát được tiếng của bài ghi; vẫn xem lại được nét viết.', false, 5000); } }); }
+  const loop = () => {
+    if (player !== P || !P.playing) return;
+    let t = playTime();
+    if (P.cutFrom === null) for (const c of P.D.cuts) if (t >= c[0] && t < c[1]) { playSeek(c[1]); t = Math.min(P.dur, c[1]); break; }
+    if (t >= P.dur) { playApply(P.dur); playPause(); return; }
+    playApply(t); playUI(); P.raf = requestAnimationFrame(loop);
+  };
+  playUI(); P.raf = requestAnimationFrame(loop);
+}
+function playUI(){
+  const P = player; if (!P) return;
+  $('pPlay').textContent = P.playing ? '❚❚' : '▶'; $('pPlay').setAttribute('aria-label', P.playing ? 'Tạm dừng' : 'Phát');
+  $('pTime').textContent = fmtT(P.t) + ' / ' + fmtT(P.dur); if (!P.dragging) $('pSeek').value = P.t;
+  $('pSpeed').textContent = (P.speed === 1 ? '1' : String(P.speed).replace('.', ',')) + '×';
+  $('pCut').textContent = P.cutFrom === null ? 'Cắt' : 'Cắt đến đây'; $('pCut').classList.toggle('on', P.cutFrom !== null);
+}
+function playStrip(){                                 // dải mỏng trên thanh thời gian: vạch vàng là mục đã đánh dấu, khúc đỏ là đoạn đã cắt
+  const P = player, d = Math.max(1, P.dur);
+  $('pStrip').innerHTML = P.D.cuts.map(c => `<i class="cut" style="left:${c[0] / d * 100}%;width:${(c[1] - c[0]) / d * 100}%"></i>`).join('') + P.D.marks.map(m => `<i class="mk" style="left:${m.t / d * 100}%"></i>`).join('');
+}
+function playList(){                                  // bảng "Mục": các câu đã đánh dấu và các đoạn đã cắt
+  const P = player, D = P.D;
+  $('pMarks').innerHTML = (D.marks.length ? D.marks.map((m, i) => `<div class="brow gf" data-i="${i}"><button data-b="go" class="ptime">${fmtT(m.t)}</button><input type="text" maxlength="60" value="${esc(m.label)}" autocomplete="off" spellcheck="false" aria-label="Tên mục"><button data-b="del" class="danger" aria-label="Bỏ mục này">✕</button></div>`).join('') : '<p class="rnote">Chưa có mục nào. Tua tới đầu một câu rồi bấm "Đánh dấu chỗ này".</p>')
+    + (D.cuts.length ? '<h3 style="margin-top:12px">Đoạn đã cắt (lúc xem sẽ nhảy qua)</h3>' + D.cuts.map((c, i) => `<div class="brow" data-c="${i}"><button class="bopen" data-b="cgo"><b>${fmtT(c[0])} → ${fmtT(c[1])}</b></button><button data-b="cdel">Bỏ cắt</button></div>`).join('') : '');
+}
+function playSaveMeta(){ const P = player; if (!P) return; P.D.marks.sort((a, b) => a.t - b.t); P.D.cuts.sort((a, b) => a[0] - b[0]); playStrip(); idb('readwrite', st => st.put(P.R, 'rec-' + P.R.meta.id)).catch(() => {}); }
+function playCut(){                                   // bấm lần 1: đầu đoạn cắt; tua tới cuối đoạn rồi bấm lần 2: cắt
+  const P = player; if (!P) return;
+  if (P.cutFrom === null) { P.cutFrom = P.t; toast('Đầu đoạn cắt: ' + fmtT(P.t) + '. Phát hoặc tua tới cuối đoạn lộn xộn rồi bấm "Cắt đến đây".', false, 6000); }
+  else { const a = Math.min(P.cutFrom, P.t), b = Math.max(P.cutFrom, P.t); P.cutFrom = null; if (b - a < 500) toast('Đoạn cắt ngắn quá (dưới nửa giây), đã bỏ.'); else { P.D.cuts.push([Math.round(a), Math.round(b)]); playSaveMeta(); toast(`Đã cắt ${fmtT(a)} → ${fmtT(b)}. Bỏ cắt được trong "Mục".`, false, 5000); } }
+  playUI();
+}
+
+/* ----- Nối nút bấm ----- */
+$('recBtn').onclick = () => rec ? ($('menu').hidden = true) : recStart();
+$('recsBtn').onclick = openRecs;
+$('recNew').onclick = () => { if (!rec) recStart(); };
+$('recOpen').onclick = () => $('recIn').click();
+$('recIn').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) recImport(f); };
+$('recPause').onclick = recPause; $('recMarkBtn').onclick = recMark; $('recStop').onclick = recStop;
+$('recList').addEventListener('click', async e => {
+  const b = e.target.closest('button'), row = e.target.closest('.brow'); if (!b || !row) return; const id = row.dataset.id, m = recIndex.find(x => x.id === id); if (!m) return;
+  if (b.dataset.b === 'open') { if (m.partial) { toast('Bài này đang ghi dở.'); return; } const R = await idb('readonly', st => st.get('rec-' + id)).catch(() => null); if (!R) { toast('Không đọc được bài ghi này trong kho của trình duyệt.'); return; } playEnter(R); }
+  else if (b.dataset.b === 'exp') recExport(id);
+  else if (b.dataset.b === 'ren') { recRen = id; recDel = null; renderRecs(); const i = $('recRenIn'); if (i) { i.focus(); i.select(); } }
+  else if (b.dataset.b === 'save') { const v = $('recRenIn').value.trim(); if (v) { m.name = v.slice(0, 80); recSaveIndex(); idb('readonly', st => st.get('rec-' + id)).then(R => { if (R) { R.meta.name = m.name; return idb('readwrite', st => st.put(R, 'rec-' + id)); } }).catch(() => {}); } recRen = null; renderRecs(); }
+  else if (b.dataset.b === 'del') { if (recDel === id) { recDel = null; recDelete(id); } else { recDel = id; renderRecs(); } }
+});
+$('recList').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'recRenIn') e.target.parentElement.querySelector('[data-b="save"]').click(); });
+$('pClose').onclick = playExit; $('pPlay').onclick = playPause; $('pCut').onclick = playCut;
+$('pSpeed').onclick = () => { const P = player, sp = [1, 1.25, 1.5, 2, 0.75]; const t = playTime(); P.speed = sp[(sp.indexOf(P.speed) + 1) % sp.length]; P.tAt = t; P.clock0 = performance.now(); if (P.audio) P.audio.playbackRate = P.speed; playUI(); };
+$('pSeek').addEventListener('input', e => { const P = player; if (!P) return; P.dragging = true; playSeek(+e.target.value); });
+$('pSeek').addEventListener('change', () => { if (player) player.dragging = false; });
+$('pListBtn').onclick = () => { const L = $('pList'); if (L.hidden) { playList(); L.hidden = false; } else L.hidden = true; };
+$('pAddMark').onclick = () => { const P = player; P.D.marks.push({ t:Math.round(P.t), label:'Câu ' + (P.D.marks.length + 1) }); playSaveMeta(); playList(); };
+$('pMarks').addEventListener('click', e => {
+  const P = player, b = e.target.closest('button'); if (!P || !b) return; const row = b.closest('.brow');
+  if (b.dataset.b === 'go') { playSeek(P.D.marks[+row.dataset.i].t); $('pList').hidden = true; }
+  else if (b.dataset.b === 'del') { P.D.marks.splice(+row.dataset.i, 1); playSaveMeta(); playList(); }
+  else if (b.dataset.b === 'cgo') { const c = P.D.cuts[+row.dataset.c]; P.cutFrom = c[0]; playSeek(Math.max(0, c[0] - 3000)); P.cutFrom = null; $('pList').hidden = true; }
+  else if (b.dataset.b === 'cdel') { P.D.cuts.splice(+row.dataset.c, 1); playSaveMeta(); playList(); }
+});
+$('pMarks').addEventListener('change', e => { const P = player, row = e.target.closest('.brow'); if (P && row && e.target.tagName === 'INPUT') { P.D.marks[+row.dataset.i].label = e.target.value.trim().slice(0, 60) || 'Mục'; playSaveMeta(); } });
+window.addEventListener('pagehide', () => { if (rec) recKeep(); });   // app sắp bị đóng giữa lúc ghi: cất tạm lần cuối
+
+
 async function boot(){
   resize(); new ResizeObserver(resize).observe(stage);
   updateUI(); invalidate(true);
@@ -6194,6 +6581,7 @@ async function boot(){
     penW = clamp(+pref.penW || 0, 0, 16); hlW = clamp(+pref.hlW || 0, 0, 60); penA = clamp(+pref.penA || 1, 0.1, 1); hlA = clamp(+pref.hlA || 0.35, 0.1, 1); penDash = DASHES[pref.penDash] ? pref.penDash : ''; penGap = clamp(+pref.penGap || 1, 0.4, 3);
   }
   await loadBoard(curId); ready = true;
+  await recLoadIndex(); recRecover();               // bài ghi: nạp danh sách, ráp lại bài ghi dở (nếu lần trước app bị tắt giữa chừng)
 }
 boot();
 // Bản web riêng: đăng kí "người giữ kho" (sw.js) để app được lưu sẵn trong máy, mở được cả khi không có mạng. Trong Claude thì bỏ qua.
