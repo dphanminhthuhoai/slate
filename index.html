@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v104 -->
+<!-- dmath Slate, bản web v105 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -24,7 +24,7 @@
   --hint:rgba(255,255,255,.42);
   --font:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
-html,body{height:100%;margin:0}
+html,body{height:100%;margin:0;touch-action:manipulation}   /* touch-action:manipulation: chạm nhanh hai lần vào nút KHÔNG làm trình duyệt phóng to trang */
 [hidden]{display:none!important}
 body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:hidden;display:flex;flex-direction:column;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
@@ -6547,7 +6547,10 @@ $('pMarks').addEventListener('click', e => {
   else if (b.dataset.b === 'cdel') { P.D.cuts.splice(+row.dataset.c, 1); playSaveMeta(); playList(); }
 });
 $('pMarks').addEventListener('change', e => { const P = player, row = e.target.closest('.brow'); if (P && row && e.target.tagName === 'INPUT') { P.D.marks[+row.dataset.i].label = e.target.value.trim().slice(0, 60) || 'Mục'; playSaveMeta(); } });
-window.addEventListener('pagehide', () => { if (rec) recKeep(); });   // app sắp bị đóng giữa lúc ghi: cất tạm lần cuối
+window.addEventListener('pagehide', () => { if (rec) recKeep(); });
+// Chặn trình duyệt tự phóng to cả trang: chụm hai ngón lên thanh công cụ (Safari), chạm đúp vào nút. Phóng to bảng vẫn dùng hai ngón trên mặt bảng như cũ.
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive:false });
+document.addEventListener('dblclick', e => e.preventDefault(), { passive:false });
 
 
 async function boot(){
