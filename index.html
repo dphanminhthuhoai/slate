@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v117 -->
+<!-- dmath Slate, bản web v118 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -37,6 +37,11 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 .morepop{position:fixed;z-index:20;display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:14px;background:var(--chrome);border:1px solid var(--line);box-shadow:0 12px 32px rgba(0,0,0,.4)}
 .morepop[hidden]{display:none}
 .linepop{flex-direction:row}
+.favhead{display:flex;align-items:center;justify-content:space-between;margin:6px 4px 2px;font:600 11px var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.favhead button{border:0;background:none;color:var(--accent);font:600 13px var(--font);padding:6px 4px;cursor:pointer;text-transform:none;letter-spacing:0}
+.favlist{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(340px,80vw)}
+.favlist .chip{display:block;text-align:center;height:44px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-inline:8px}
+.favlist p{grid-column:1 / -1;margin:2px 4px;font-size:13px;color:var(--muted);line-height:1.45}
 .linepop .btn.wide{display:flex;align-items:center;flex-direction:column;width:76px;height:64px;gap:4px;justify-content:center;padding:0}
 .linepop .btn.wide span{font-size:12px}
 .btn.wide{width:auto;justify-content:start;grid-auto-flow:column;gap:10px;padding:0 14px 0 10px;font-size:15px;white-space:nowrap}
@@ -272,7 +277,7 @@ body.player .clayer{pointer-events:none}
   <button class="btn" data-tool="laser" title="Bút laser, nét tự mờ (L)" aria-label="Bút laser"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></button>
   <button class="btn" data-tool="lasso" title="Chọn và dời: chạm vào nét để kéo đi, hoặc khoanh quanh nhiều nét (S)" aria-label="Chọn và dời"><svg viewBox="0 0 24 24"><path d="M12 4.5c-4.4 0-8 2.4-8 5.5s3.6 5.5 8 5.5 8-2.4 8-5.5-3.6-5.5-8-5.5z" stroke-dasharray="3 2.6"/><path d="M7.5 14.8c-1.2 1.6-.8 3.6 1.3 4.9"/></svg></button>
   <button class="btn" id="shapeBtn" title="Hình có sẵn và đồ thị" aria-label="Hình có sẵn và đồ thị"><svg viewBox="0 0 24 24"><path d="M3.5 20.5l5-9 5 9z"/><circle cx="16.5" cy="7.5" r="4"/><path d="M14 14h6.5v6.5H14z"/></svg></button>
-  <button class="btn" id="moreBtn" title="Công cụ khác: gõ chữ, chụp vùng, chèn khoảng trống" aria-label="Công cụ khác" aria-haspopup="true"><svg viewBox="0 0 24 24"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z"/></svg></button>
+  <button class="btn" id="moreBtn" title="Hay dùng: những thứ thầy tự ghim, gõ chữ, chèn khoảng trống" aria-label="Hay dùng" aria-haspopup="true"><svg viewBox="0 0 24 24"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z"/></svg></button>
   <div class="morepop linepop" id="linepop" hidden>
     <button class="btn wide" data-line="solid" title="Đoạn thẳng liền"><svg viewBox="0 0 24 24"><path d="M3 19L21 5"/></svg><span>Liền</span></button>
     <button class="btn wide" data-line="dash" title="Đoạn thẳng đứt"><svg viewBox="0 0 24 24"><path d="M3 19l4-3.1M10 13.6l4-3.1M17 8.1l4-3.1"/></svg><span>Đứt</span></button>
@@ -281,6 +286,8 @@ body.player .clayer{pointer-events:none}
   <div class="morepop" id="morepop" hidden>
     <button class="btn wide" data-tool="text" title="Gõ chữ (T)" aria-label="Gõ chữ"><svg viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg><span>Gõ chữ</span></button>
     <button class="btn wide" data-tool="space" title="Chèn khoảng trống: chạm vào chỗ cần thêm chỗ rồi kéo xuống, mọi thứ bên dưới dời theo" aria-label="Chèn khoảng trống"><svg viewBox="0 0 24 24"><path d="M4 12h16" stroke-dasharray="3 2"/><path d="M12 14v6M9.5 17.5 12 20l2.5-2.5M12 10V4M9.5 6.5 12 4l2.5 2.5"/></svg><span>Chèn khoảng trống</span></button>
+    <div class="favhead"><span>Hay dùng</span><button id="favEditBtn" title="Chọn những thứ thầy muốn ghim ra đây">Sửa</button></div>
+    <div class="favlist" id="favList"></div>
   </div>
   <div class="sep"></div>
   <span id="swatches" style="display:flex"></span>
@@ -397,7 +404,7 @@ body.player .clayer{pointer-events:none}
   </div>
 
   <div class="menu shapes" id="shapes" hidden>
-    <div><h3>Hay dùng <small style="text-transform:none;letter-spacing:0;font-weight:400">· tự xếp theo thứ thầy vừa dùng</small></h3><div class="chips two" id="recentChips"></div></div>
+    <div><h3>Vừa dùng <small style="text-transform:none;letter-spacing:0;font-weight:400">· tự xếp theo thứ thầy vừa chèn</small></h3><div class="chips two" id="recentChips"></div></div>
     <button class="row" id="graphBtn">Đồ thị hàm số <small>gõ công thức, có thanh kéo tham số</small></button>
     <div><h3>Mô hình tương tác lớp 10</h3><div class="chips two">
       <button class="chip" data-model="ineq">Miền nghiệm</button>
@@ -496,6 +503,11 @@ body.player .clayer{pointer-events:none}
     <div class="gf"><label for="ghRepo">Kho (tên-tài-khoản/tên-kho)</label><input type="text" id="ghRepo" placeholder="dphanminhthuhoai/baigiang" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
     <div class="gf"><label for="ghToken">Mã khoá GitHub (chỉ lưu trong máy này)</label><input type="password" id="ghToken" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
     <div class="chips"><button class="chip go" id="ghSave">Lưu</button><button class="chip" id="ghClose">Đóng</button></div>
+  </div>
+  <div class="menu shapes" id="favEdit" hidden>
+    <h3 style="margin:0">Chọn mục Hay dùng <small style="text-transform:none;letter-spacing:0;font-weight:400">· chạm để ghim hoặc bỏ ghim</small></h3>
+    <div id="favAll" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="chips"><button class="chip go" id="favDone">Xong</button></div>
   </div>
   <div class="menu" id="pList" hidden><h3>Mục đã đánh dấu</h3><div class="rows" id="pMarks"></div><div class="chips" style="margin-top:8px"><button class="chip go" id="pAddMark">Đánh dấu chỗ này</button></div></div>
   <div class="selbar" id="clipbar" style="left:50%;top:10px" hidden>
@@ -5505,6 +5517,41 @@ function buildShapePanel(){
 buildShapePanel();
 $('shapeGroups').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const [gi, i] = b.dataset.s.split('-').map(Number); recentUse('S|' + SHAPES[gi].list[i].n); insertShape(SHAPES[gi].list[i]); });
 renderRecent();
+/* "Hay dùng" do thầy tự ghim: bấm nút bốn ô vuông trên thanh là thấy. Ghim được hình mẫu (S|tên), mô hình (M|loại) và các dụng cụ trong menu ⋯ (U|chỗ của nút trong menu).
+   Muốn thêm một dụng cụ trong menu vào danh sách chọn được: thêm một dòng vào FAV_MENU bên dưới. */
+const FAV_KEY = 'dmath-slate-fav';
+const FAV_MENU = ['[data-kit="ruler"]', '[data-kit="eke"]', '[data-kit="pro"]', '#coverAdd', '[data-widget="clock"]', '[data-widget="timer"]', '[data-widget="spot"]', '#imgOpen', '#pdfOpen', '#calcLink', '#webBtn', '#recBtn', '#recsBtn', '#fullBtn', '#expPdf', '#expPng', '[data-pattern="grid"]', '[data-pattern="lines"]', '[data-pattern="none"]'];
+let favs = ['S|Bảng biến thiên', 'S|Hệ trục Oxy', 'U|[data-kit="ruler"]', 'U|[data-kit="eke"]', 'U|#coverAdd', 'M|solid'];   // lúc đầu; thầy sửa bằng nút "Sửa"
+try { const r = JSON.parse(localStorage.getItem(FAV_KEY) || 'null'); if (Array.isArray(r)) favs = r; } catch (_) {}
+const favEl = sel => document.querySelector('#menu ' + sel);
+const favText = el => { let t = ''; for (const nd of el.childNodes) if (nd.nodeType === 3) t += nd.textContent; return t.trim() || el.textContent.trim(); };   // chữ chính của nút, bỏ phần chú thích nhỏ
+function favLabel(k){ if (k[0] === 'U') { const el = favEl(k.slice(2)); return el ? (k.includes('data-pattern') ? 'Kẻ nền: ' : '') + favText(el) : null; } return recentLabel(k); }
+function favRun(k){
+  const v = k.slice(2); $('morepop').hidden = true;
+  if (k[0] === 'M') useModel(v);
+  else if (k[0] === 'S') { for (const g of SHAPES) { const d = g.list.find(x => x.n === v); if (d) { recentUse(k); insertShape(d); break; } } }
+  else { const el = favEl(v); if (el) el.click(); $('menu').hidden = true; }
+}
+function renderFav(){
+  const items = favs.map(k => [k, favLabel(k)]).filter(x => x[1]);
+  $('favList').innerHTML = items.length ? items.map(([k, lab]) => `<button class="chip" data-fav="${escR(k)}" title="${escR(lab)}">${escR(lab)}</button>`).join('') : '<p>Chưa ghim gì. Bấm "Sửa" để chọn những thứ thầy hay dùng.</p>';
+}
+function renderFavAll(){
+  const chip = k => { const lab = favLabel(k); return lab ? `<button class="chip" data-favt="${escR(k)}" aria-pressed="${favs.includes(k)}">${escR(lab)}</button>` : ''; };
+  const sec = (title, keys) => `<div><h3>${title}</h3><div class="chips two">${keys.map(chip).join('')}</div></div>`;
+  $('favAll').innerHTML = sec('Dụng cụ và lệnh trong menu', FAV_MENU.map(q => 'U|' + q)) + SHAPES.map(g => sec(g.g, g.list.map(d => 'S|' + d.n))).join('')
+    + sec('Mô hình', [...new Set([...document.querySelectorAll('#shapes [data-model]')].map(b => 'M|' + b.dataset.model))]);
+}
+$('favList').addEventListener('click', e => { const b = e.target.closest('[data-fav]'); if (b) favRun(b.dataset.fav); });
+$('favEditBtn').onclick = () => { $('morepop').hidden = true; renderFavAll(); const p = $('favEdit'); p.hidden = false; p.scrollTop = 0; };
+$('favAll').addEventListener('click', e => {
+  const b = e.target.closest('[data-favt]'); if (!b) return; const k = b.dataset.favt;
+  favs = favs.includes(k) ? favs.filter(x => x !== k) : [...favs, k];
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (_) {}
+  b.setAttribute('aria-pressed', favs.includes(k)); renderFav();
+});
+$('favDone').onclick = () => { $('favEdit').hidden = true; toast('Đã lưu. Bấm nút bốn ô vuông trên thanh để mở mục Hay dùng.'); };
+renderFav();
 $('shapeBtn').onclick = () => { const p = $('shapes'); p.hidden = !p.hidden; p.scrollTop = 0; $('menu').hidden = true; $('books').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true; };
 
 /* ---------- Gõ chữ lên bảng ---------- */
@@ -5601,7 +5648,7 @@ const touches = new Map(); let gPrev = null;
 ov.addEventListener('pointerdown', e => {
   cancelAnimationFrame(anim);                         // chạm vào bảng là bảng đang trôi dừng ngay
   if (player) { $('pList').hidden = true; return; }    // đang xem lại bài ghi: không viết vẽ gì lên bảng
-  $('linepop').hidden = true; $('recs').hidden = true; $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
+  $('favEdit').hidden = true; $('linepop').hidden = true; $('recs').hidden = true; $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
   if (ed) { if (e.pointerType === 'touch' && (penRecent() || isPalm(e))) return; commitText(); return; }   // đang gõ chữ: chạm ra bảng là xong
   if (e.pointerType === 'touch') {
     const penBusy = (activeId !== null && !activeIsTouch) || penRecent() || isPalm(e) || tgDead;   // đang viết, vừa viết xong, vết chạm to, hay bút đã hạ trong lúc tay còn tì: đều là tay tì
