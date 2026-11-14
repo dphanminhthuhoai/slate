@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v115 -->
+<!-- dmath Slate, bản web v116 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -397,6 +397,7 @@ body.player .clayer{pointer-events:none}
   </div>
 
   <div class="menu shapes" id="shapes" hidden>
+    <div><h3>Hay dùng <small style="text-transform:none;letter-spacing:0;font-weight:400">· tự xếp theo thứ thầy vừa dùng</small></h3><div class="chips two" id="recentChips"></div></div>
     <button class="row" id="graphBtn">Đồ thị hàm số <small>gõ công thức, có thanh kéo tham số</small></button>
     <div><h3>Mô hình tương tác lớp 10</h3><div class="chips two">
       <button class="chip" data-model="ineq">Miền nghiệm</button>
@@ -5231,9 +5232,19 @@ function addModel(kind){                              // đặt một mô hình 
   M.init(g); compileGraph(g); graphs.push(g); undoStack.push({ t:'gadd', g }); redoStack.length = 0;
   return g;
 }
-document.querySelectorAll('[data-model]').forEach(b => b.onclick = () => {
-  $('shapes').hidden = true;
-  if (b.dataset.model === 'ineq') openIneq(null); else { addModel(b.dataset.model); syncGraphs(); changed(); }
+const useModel = k => { $('shapes').hidden = true; recentUse('M|' + k); if (k === 'ineq') openIneq(null); else { addModel(k); syncGraphs(); changed(); } };
+document.querySelectorAll('[data-model]').forEach(b => b.onclick = () => useModel(b.dataset.model));
+/* "Hay dùng": hàng đầu của bảng Hình và mô hình. Thứ gì thầy vừa chèn (hình mẫu, bảng biến thiên, hệ trục, mô hình) tự nhảy lên đầu hàng này, lần sau mở bảng là thấy ngay, khỏi kéo tìm. */
+const RECENT_KEY = 'dmath-slate-recent', RECENT_N = 6;
+let recent = ['S|Bảng biến thiên', 'S|Hệ trục Oxy', 'M|solid', 'S|Trục số', 'S|Oxy góc I', 'S|Bảng 3 × 4'];   // lúc đầu: mấy thứ hay dùng khi dạy; sau đó tự đổi theo thói quen
+try { const r = JSON.parse(localStorage.getItem(RECENT_KEY) || 'null'); if (Array.isArray(r) && r.length) recent = r.concat(recent.filter(k => !r.includes(k))).slice(0, RECENT_N); } catch (_) {}
+function recentUse(k){ recent = [k, ...recent.filter(x => x !== k)].slice(0, RECENT_N); try { localStorage.setItem(RECENT_KEY, JSON.stringify(recent)); } catch (_) {} renderRecent(); }
+function recentLabel(k){ const [t, v] = [k[0], k.slice(2)]; if (t === 'M') { const b = document.querySelector('#shapes [data-model="' + v + '"]'); return b ? b.textContent.trim() : null; } for (const g of SHAPES) if (g.list.some(d => d.n === v)) return v; return null; }
+const escR = t => String(t).replace(/[&<>"]/g, ch => '&#' + ch.charCodeAt(0) + ';');
+function renderRecent(){ $('recentChips').innerHTML = recent.map(k => [k, recentLabel(k)]).filter(x => x[1]).map(([k, lab]) => `<button class="chip" data-recent="${escR(k)}">${escR(lab)}</button>`).join(''); }
+$('recentChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-recent]'); if (!b) return; const k = b.dataset.recent, v = k.slice(2);
+  if (k[0] === 'M') useModel(v); else { for (const g of SHAPES) { const d = g.list.find(x => x.n === v); if (d) { recentUse(k); insertShape(d); break; } } }
 });
 
 /* ---------- Ảnh chèn lên bảng (ảnh chụp đề bài, hình trong sách) ---------- */
@@ -5461,8 +5472,9 @@ function buildShapePanel(){
   });
 }
 buildShapePanel();
-$('shapeGroups').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const [gi, i] = b.dataset.s.split('-').map(Number); insertShape(SHAPES[gi].list[i]); });
-$('shapeBtn').onclick = () => { const p = $('shapes'); p.hidden = !p.hidden; $('menu').hidden = true; $('books').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true; };
+$('shapeGroups').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const [gi, i] = b.dataset.s.split('-').map(Number); recentUse('S|' + SHAPES[gi].list[i].n); insertShape(SHAPES[gi].list[i]); });
+renderRecent();
+$('shapeBtn').onclick = () => { const p = $('shapes'); p.hidden = !p.hidden; p.scrollTop = 0; $('menu').hidden = true; $('books').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true; };
 
 /* ---------- Gõ chữ lên bảng ---------- */
 const TEXT_SIZES = [24, 34, 48];                      // ba cỡ chữ, theo ba nút cỡ bút
