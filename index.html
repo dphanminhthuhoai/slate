@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v111 -->
+<!-- dmath Slate, bản web v112 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -513,6 +513,8 @@ const CONFIG = {
   PEN_SIZES: [2.6, 4.6, 8], // ba cỡ bút: mảnh, vừa, đậm
   HL_SIZES: [22, 30, 40],   // ba cỡ bút dạ quang
   ERASER_SIZES: [9, 16, 30],   // ba cỡ tẩy: nhỏ, vừa, to (bán kính, điểm ảnh màn hình); đang cầm tẩy thì ba nút cỡ nét chọn cỡ tẩy
+  PALM_MS: 700,             // sau khi bút vừa chạm / rê trên bảng, trong bấy nhiêu mili giây mọi cú chạm tay đều bị coi là tay tì và bỏ qua
+  PALM_SIZE: 90,            // vết chạm rộng từ bấy nhiêu điểm ảnh trở lên là lòng bàn tay, không phải ngón tay
   ERASER_PX: 16,            // bán kính tẩy (điểm ảnh màn hình)
   LASER_MS: 1600,           // nét laser mờ dần trong bao lâu (mili giây)
   HOLD_MS: 550,             // giữ yên bút bao lâu thì nét tự thẳng
@@ -547,6 +549,10 @@ let undoStack = [], redoStack = [];
 const view = { tx:0, ty:0, zoom:1 };
 let cw = 1, ch = 1, dpr = 1, base = 1, left = 0, topPx = 0;
 let fingerDraw = true, penSeen = false, lastPen = -1e9;
+const penRecent = () => performance.now() - lastPen < CONFIG.PALM_MS;                  // bút vừa dùng xong: tay chạm lúc này là tay tì
+const isPalm = e => Math.max(e.width || 0, e.height || 0) >= CONFIG.PALM_SIZE;          // vết chạm to: lòng bàn tay
+let lastPenUp = -1e9;                                  // lúc bút vừa nhấc khỏi bảng (không tính lúc bút chỉ rê phía trên)
+let viewSnap = null, tgDead = false;                   // viewSnap: chỗ bảng đang đứng lúc tay vừa chạm (để trả lại nếu hoá ra là tay tì trước khi bút hạ); tgDead: bút đã hạ, bỏ mọi cử chỉ tay cho tới khi nhấc hết tay
 const S = () => base * view.zoom;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const r1 = v => Math.round(v * 10) / 10;
@@ -1287,7 +1293,7 @@ function addCover(){                                  // che nửa dưới của
 $('coverAdd').onclick = addCover;
 $('clayer').addEventListener('pointerdown', e => {
   const el = e.target.closest('.cover'); if (!el) return;
-  if (e.pointerType === 'touch' && ((activeId !== null && !activeIsTouch) || performance.now() - lastPen < 400)) return;   // tay tì lúc đang viết: bỏ qua
+  if (e.pointerType === 'touch' && ((activeId !== null && !activeIsTouch) || penRecent())) return;   // tay tì lúc đang viết: bỏ qua
   if (e.pointerType === 'pen') lastPen = performance.now();
   const cv = covers.find(c => c.id === +el.dataset.id), h = e.target.dataset.h || 'm';
   if (h === 'x') { covers = covers.filter(c => c !== cv); syncCovers(); scheduleSave(); return; }
@@ -5458,13 +5464,13 @@ const touches = new Map(); let gPrev = null;
 ov.addEventListener('pointerdown', e => {
   if (player) { $('pList').hidden = true; return; }    // đang xem lại bài ghi: không viết vẽ gì lên bảng
   $('recs').hidden = true; $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
-  if (ed) { if (e.pointerType === 'touch' && performance.now() - lastPen < 400) return; commitText(); return; }   // đang gõ chữ: chạm ra bảng là xong
+  if (ed) { if (e.pointerType === 'touch' && (penRecent() || isPalm(e))) return; commitText(); return; }   // đang gõ chữ: chạm ra bảng là xong
   if (e.pointerType === 'touch') {
-    const penBusy = (activeId !== null && !activeIsTouch) || performance.now() - lastPen < 400;
+    const penBusy = (activeId !== null && !activeIsTouch) || penRecent() || isPalm(e) || tgDead;   // đang viết, vừa viết xong, vết chạm to, hay bút đã hạ trong lúc tay còn tì: đều là tay tì
+    if (!penBusy && !touches.size) viewSnap = { tx:view.tx, ty:view.ty, zoom:view.zoom, t:performance.now() };
     if (!penBusy && activeId === null) { const mh = modelHit(toWorld(e)); if (mh) { beginHandle(e, mh); return; } }   // ngón tay đặt lên điểm kéo của mô hình
     if (!penBusy && activeId === null) { const h = kitHit(toWorld(e)); if (h && (h.kind === 'move' || h.kind === 'rot' || h.kind === 'ray')) { beginKit(e, h); return; } }   // ngón tay đặt lên dụng cụ: dời hoặc xoay nó (ngón tay trên thân thước đo độ cũng là dời)
     touches.set(e.pointerId, { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, ignore:penBusy }); gPrev = null;
-    if (touches.size === 2 && !penBusy) tap2 = { t:performance.now(), bad:false }; else if (touches.size > 2 && tap2) tap2.bad = true;
     if (penBusy) return;
     if (fingerDraw && touches.size === 1 && activeId === null) begin(e);
     else if (activeId !== null && activeIsTouch) cancelCur();       // ngón thứ hai chạm: bỏ nét dở, chuyển sang cuộn
@@ -5472,6 +5478,10 @@ ov.addEventListener('pointerdown', e => {
   }
   if (e.pointerType === 'pen') {
     lastPen = performance.now();
+    // Bút hạ xuống trong lúc tay đang chạm bảng: những cú chạm đó là tay tì. Bỏ hết cử chỉ tay đang dở, và nếu tay vừa làm bảng xê dịch thì trả bảng về chỗ cũ.
+    for (const q of touches.values()) q.ignore = true; if (touches.size || tg) tgDead = true; tg = null; gPrev = null;
+    if (viewSnap && performance.now() - viewSnap.t < 1500 && (viewSnap.tx !== view.tx || viewSnap.ty !== view.ty || viewSnap.zoom !== view.zoom)) { view.tx = viewSnap.tx; view.ty = viewSnap.ty; view.zoom = viewSnap.zoom; clampView(); updateNav(); invalidate(true); }
+    viewSnap = null;
     if (!penSeen) { penSeen = true; if (fingerDraw) { setFinger(false); toast('Đã nhận bút. Ngón tay giờ chỉ cuộn và phóng to.'); } }
     if (activeId !== null && activeIsTouch) cancelCur();
   }
@@ -5492,17 +5502,11 @@ ov.addEventListener('pointermove', e => {
   }
   if (e.pointerType === 'touch') gesture(e);
 });
-let tap2 = null, lastTap2 = 0;                        // theo dõi chạm đúp bằng hai ngón
 function pointerEnd(e){
-  if (e.pointerType === 'pen') lastPen = performance.now();
+  if (e.pointerType === 'pen') { lastPen = performance.now(); if (e.pointerId === activeId) lastPenUp = lastPen; }
   if (e.pointerType === 'touch') {
-    const t = touches.get(e.pointerId); if (tap2 && (!t || e.type !== 'pointerup' || Math.hypot(e.clientX - t.x0, e.clientY - t.y0) > 14)) tap2.bad = true;   // ngón có trượt đi: là cuộn hay chụm, không phải chạm
     touches.delete(e.pointerId); gPrev = null;
-    if (!touches.size && tap2) {                      // hai ngón vừa nhấc hết: một lần "chạm hai ngón"; hai lần liền nhau thì bảng về 100%
-      const now = performance.now(), ok = !tap2.bad && now - tap2.t < 300; tap2 = null;
-      if (ok && now - lastTap2 < 500) { lastTap2 = 0; if (Math.abs(view.zoom - 1) > 0.005) { zoomAt(e.clientX - left, e.clientY - topPx, 1 / view.zoom); clampView(); updateNav(); invalidate(true); } }
-      else lastTap2 = ok ? now : 0;
-    }
+    if (!touches.size) { viewSnap = null; tgDead = false; }
   }
   if (e.pointerId === activeId) { if (e.type === 'pointerup') step(e); finish(); }
   else if (e.pointerType === 'touch' && !touches.size) scheduleSave();
@@ -5512,10 +5516,21 @@ ov.addEventListener('pointercancel', pointerEnd);
 
 /* Safari iPad đôi khi không đưa ngón thứ hai qua pointer events: bắt thêm bằng sự kiện cảm ứng gốc cho cử chỉ hai ngón (cuộn + chụm/giãn) */
 let tg = null;
-const tsnap = e => { const a = e.touches[0], b = e.touches[1]; return { cx:(a.clientX + b.clientX) / 2, cy:(a.clientY + b.clientY) / 2, d:Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) }; };
-ov.addEventListener('touchstart', e => { if (player && player.playing) return; if (e.touches.length === 2) { e.preventDefault(); if (activeId !== null && activeIsTouch) cancelCur(); if (activeId === null) tg = tsnap(e); } }, { passive:false });
+const fingersOf = e => [...e.touches].filter(t => t.touchType !== 'stylus');   // chỉ tính ngón tay, không tính đầu bút
+const palmTouch = t => Math.max(t.radiusX || 0, t.radiusY || 0) * 2 >= CONFIG.PALM_SIZE;
+const tsnap = e => { const [a, b] = fingersOf(e); return { cx:(a.clientX + b.clientX) / 2, cy:(a.clientY + b.clientY) / 2, d:Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) }; };
+ov.addEventListener('touchstart', e => {
+  if (player && player.playing) return;
+  const fs = fingersOf(e);
+  if (fs.length === 2 && e.touches.length === 2) {
+    e.preventDefault();
+    if (penRecent() || tgDead || fs.some(palmTouch) || (activeId !== null && !activeIsTouch)) return;   // tay tì lúc đang viết: không cuộn, không phóng
+    if (activeId !== null && activeIsTouch) cancelCur();
+    if (activeId === null) { tg = tsnap(e); if (!viewSnap) viewSnap = { tx:view.tx, ty:view.ty, zoom:view.zoom, t:performance.now() }; }
+  }
+}, { passive:false });
 ov.addEventListener('touchmove', e => {
-  if (e.touches.length !== 2) return; e.preventDefault(); if (activeId !== null) return;
+  if (e.touches.length !== 2) return; e.preventDefault(); if (activeId !== null || !tg || tgDead || penRecent() || fingersOf(e).length !== 2) { tg = null; return; }
   const sn = tsnap(e);
   if (tg) { cancelAnimationFrame(anim); view.tx += sn.cx - tg.cx; view.ty += sn.cy - tg.cy;
     sn.d0 = tg.d0 || tg.d; sn.z = tg.z || Math.abs(sn.d / sn.d0 - 1) > 0.08;   // chỉ bắt đầu phóng khi hai ngón đã chụm/giãn quá 8%: cuộn hai ngón không bị phóng lắt nhắt (và cuộn nhẹ hơn nhiều)
@@ -5523,13 +5538,13 @@ ov.addEventListener('touchmove', e => {
     clampView(); if (!sn.z) snapPan(); updateNav(); invalidate(sn.z ? true : 'pan'); }
   tg = sn;
 }, { passive:false });
-for (const ev of ['touchend', 'touchcancel']) ov.addEventListener(ev, e => { if (e.touches.length < 2) { if (tg) scheduleSave(); tg = null; } });
+for (const ev of ['touchend', 'touchcancel']) ov.addEventListener(ev, e => { if (e.touches.length < 2) { if (tg) scheduleSave(); tg = null; } if (!e.touches.length) tgDead = false; });
 function gesture(e){                                 // một ngón: cuộn (khi đã dùng bút). Hai ngón: cuộn và phóng
   if (tg) return;                                    // cử chỉ hai ngón đang được xử lí bằng sự kiện cảm ứng gốc
   const t = touches.get(e.pointerId); if (!t) return;
   t.x = e.clientX; t.y = e.clientY;
   if (t.ignore || activeId !== null) return;
-  if (performance.now() - lastPen < 400) { gPrev = null; return; }
+  if (penRecent() || tgDead) { gPrev = null; return; }
   const live = [...touches.values()].filter(q => !q.ignore);
   if (!live.length || (live.length === 1 && fingerDraw)) return;
   const a = live[0], b = live[1] || a;
@@ -6660,6 +6675,13 @@ $('pMarks').addEventListener('click', e => {
 });
 $('pMarks').addEventListener('change', e => { const P = player, row = e.target.closest('.brow'); if (P && row && e.target.tagName === 'INPUT') { P.D.marks[+row.dataset.i].label = e.target.value.trim().slice(0, 60) || 'Mục'; playSaveMeta(); } });
 window.addEventListener('pagehide', () => { if (rec) recKeep(); });
+// Thanh công cụ nằm ở đáy, đúng chỗ tay hay tì: cú chạm bằng tay lúc đang viết / vừa viết xong, hoặc vết chạm to, không được tính là bấm nút.
+{ let blockUntil = 0;
+  // chặn khi: bút đang viết, bút vừa nhấc chưa tới 0,3 giây, hoặc vết chạm to
+  for (const el of [$('bar'), $('recpill')]) {
+    el.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') { blockUntil = 0; return; } if ((activeId !== null && !activeIsTouch) || performance.now() - lastPenUp < 300 || isPalm(e)) { blockUntil = performance.now() + 900; e.stopPropagation(); } }, true);
+    el.addEventListener('click', e => { if (performance.now() < blockUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+  } }
 // Chặn trình duyệt tự phóng to cả trang: chụm hai ngón lên thanh công cụ (Safari), chạm đúp vào nút. Phóng to bảng vẫn dùng hai ngón trên mặt bảng như cũ.
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive:false });
 document.addEventListener('dblclick', e => e.preventDefault(), { passive:false });
