@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v118 -->
+<!-- dmath Slate, bản web v119 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -193,6 +193,15 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 .widget button.go{background:var(--accent);color:var(--on-accent)}
 .widget button.on{background:var(--accent);color:var(--on-accent)}
 .widget .tabs button{border-radius:999px}
+.calc{display:grid;grid-template-columns:repeat(5,52px);gap:6px}
+.widget .wbody .calc button{height:44px;min-width:0;padding:0;font:500 16px var(--font);border-radius:10px}
+.widget .wbody .calc button.fn{font-size:14px;color:var(--muted)}
+.widget .wbody .calc button.op{background:var(--chrome-3,#2e3440);color:var(--accent);font-size:19px}
+.widget .wbody .calc button.eq{background:var(--accent);color:var(--on-accent);font-size:20px}
+.calcscr{width:284px;box-sizing:border-box;background:rgba(0,0,0,.28);border-radius:10px;padding:8px 10px;text-align:right;user-select:text;-webkit-user-select:text}
+.calcscr .ex{min-height:20px;font:400 15px var(--font);color:var(--muted);white-space:nowrap;overflow-x:auto;scrollbar-width:none}
+.calcscr .rs{font:600 26px/1.25 var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;overflow-x:auto;scrollbar-width:none}
+.calcscr .nx{min-height:18px;font:500 14px var(--font);color:var(--accent)}
 #spot{position:absolute;z-index:1;pointer-events:none;border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.78);border:2px solid rgba(255,255,255,.35)}
 #spot .grip{position:absolute;pointer-events:auto;touch-action:none;width:46px;height:46px;border-radius:50%;background:var(--accent);color:var(--on-accent);border:0;font:600 20px var(--font);cursor:grab;box-shadow:0 4px 12px rgba(0,0,0,.4)}
 #spot .sbtn{position:absolute;pointer-events:auto;touch-action:manipulation;width:40px;height:40px;border-radius:50%;background:var(--chrome);color:var(--fg);border:1px solid var(--line);font:600 20px var(--font);cursor:pointer}
@@ -359,6 +368,7 @@ body.player .clayer{pointer-events:none}
       <button class="chip" data-widget="clock">Đồng hồ</button>
       <button class="chip" data-widget="timer">Hẹn giờ</button>
       <button class="chip" data-widget="spot">Đèn rọi</button>
+      <button class="chip" data-widget="calc">Máy tính</button>
     </div>
     <button class="row" id="webBtn" style="margin-top:8px" hidden>Mở trang web trong bảng</button>
     <button class="row" id="fullBtn" style="margin-top:8px">Toàn màn hình <small>ẩn thanh công cụ và khung trình duyệt</small></button></div>
@@ -1518,6 +1528,7 @@ function duplicateSel(){
 
 /* ---------- Đồ thị hàm số: đọc công thức, vẽ, thanh kéo tham số ---------- */
 const FONT = '"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+const MATHF = '"Times New Roman","STIX Two Text","Noto Serif",Georgia,serif';   // phông cho tên điểm trên hình không gian: chữ nghiêng có chân như trong sách giáo khoa
 const FUNCS = { sin:Math.sin, cos:Math.cos, tan:Math.tan, cot:v => 1 / Math.tan(v), sqrt:Math.sqrt, abs:Math.abs, ln:Math.log, log:Math.log10, exp:Math.exp,
                 arcsin:Math.asin, arccos:Math.acos, arctan:Math.atan };
 const FNAMES = Object.keys(FUNCS).sort((a, b) => b.length - a.length);
@@ -1676,7 +1687,7 @@ $('glayer').addEventListener('click', e => {
   else if (a === 'hide') { g.m.hide = !g.m.hide; syncGraphs(); changed(); }
   else if (a === 'step' || a === 'step0' || a === 'view' || a === 'font' || a === 'look') {
     const before = JSON.stringify(g.m);
-    if (a === 'step') g.m.step = (g.m.step || 0) + 1; else if (a === 'step0') g.m.step = 0; else if (a === 'view') { Object.assign(g.m, MODELS[g.kind].homeView ? MODELS[g.kind].homeView() : { yaw:0.45, pitch:0.3 }); } else if (a === 'look') { if (!lookAtAngle(g)) { toast('Chưa có góc để nhìn: chọn bài toán góc trong "Dựng"'); return; } } else g.m.fs = { 15:18, 18:22, 22:15 }[g.m.fs || 15];   // ở chế độ hỏi trước, mỗi bước tốn hai lần bấm: câu hỏi rồi mới tới lời giải
+    if (a === 'step') g.m.step = (g.m.step || 0) + 1; else if (a === 'step0') g.m.step = 0; else if (a === 'view') { const home = MODELS[g.kind].homeView ? MODELS[g.kind].homeView() : { yaw:0.45, pitch:0.3 }; if (g.kind === 'solid') { viewCycle(g, home, before); return; } Object.assign(g.m, home); } else if (a === 'look') { if (!lookAtAngle(g)) { toast('Chưa có góc để nhìn: chọn bài toán góc trong "Dựng"'); return; } } else g.m.fs = { 15:18, 18:22, 22:15 }[g.m.fs || 15];   // ở chế độ hỏi trước, mỗi bước tốn hai lần bấm: câu hỏi rồi mới tới lời giải
     undoStack.push({ t:'gm', g, a:before, b:JSON.stringify(g.m) }); redoStack.length = 0; changed();
   }
   else if (a === 'unfold') {                          // Trải hình: tắt → kiểu 1 (quanh đáy) → kiểu 2 (dải mặt bên) → tắt; mỗi lần bật tự chạy từ gấp tới trải
@@ -2686,7 +2697,7 @@ const aOf = v => { const k = v / CUR_A, n = niceK(k); return (n !== null ? n : f
 const aOf2 = v => { const k = v / (CUR_A * CUR_A), n = niceK(k); return (n !== null ? n : fmt(k)) + 'a²'; }, aOf3 = v => { const k = v / (CUR_A ** 3), n = niceK(k); return (n !== null ? n : fmt(k)) + 'a³'; };
 const polyArea = pts => { let n = [0, 0, 0]; for (let i = 0; i < pts.length; i++) n = V3.add(n, V3.cross(pts[i], pts[(i + 1) % pts.length])); return V3.len(n) / 2; };   // diện tích đa giác phẳng   // 4 → "a", 2 → "0,5a"
 const nameOf = (P, Q) => P + Q;
-MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5], b:[1, 8, 0.5], 'mở':[0, 100, 1] }, tools:[['rot', 'Xoay', 'Giữ và kéo để xoay hình'], ['view', 'Sách', 'Về góc nhìn như sách giáo khoa'], ['look', 'Góc', 'Nhìn góc: xoay tới góc nhìn thấy rõ góc cần tìm'], ['unfold', 'Trải', 'Trải (khai triển) hình ra mặt phẳng: bấm lần nữa để đổi kiểu, lần thứ ba để tắt'], ['split', 'Tách', 'Bài thiết diện: tách hình thành hai khối theo mặt cắt; bấm lần nữa để ghép lại'], ['build', 'Dựng', 'Thêm điểm, nối đoạn, chọn bài toán'], ['step', 'Bước ▸', 'Hiện bước tiếp theo của lời giải'], ['step0', '⟲', 'Làm lại từ đầu'], ['font', 'Aa', 'Đổi cỡ chữ lời giải'], ['tikz', 'TikZ', 'Xuất hình thành mã TikZ để dán vào LaTeX']],
+MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5], b:[1, 8, 0.5], 'mở':[0, 100, 1] }, tools:[['rot', 'Xoay', 'Giữ và kéo để xoay hình'], ['view', 'Góc nhìn', 'Đổi góc nhìn: Chuẩn sách → Chính diện → Từ trên → Bên cạnh'], ['look', 'Góc', 'Nhìn góc: xoay tới góc nhìn thấy rõ góc cần tìm'], ['unfold', 'Trải', 'Trải (khai triển) hình ra mặt phẳng: bấm lần nữa để đổi kiểu, lần thứ ba để tắt'], ['split', 'Tách', 'Bài thiết diện: tách hình thành hai khối theo mặt cắt; bấm lần nữa để ghép lại'], ['build', 'Dựng', 'Thêm điểm, nối đoạn, chọn bài toán'], ['step', 'Bước ▸', 'Hiện bước tiếp theo của lời giải'], ['step0', '⟲', 'Làm lại từ đầu'], ['font', 'Aa', 'Đổi cỡ chữ lời giải'], ['tikz', 'TikZ', 'Xuất hình thành mã TikZ để dán vào LaTeX']],
   init(g){ g.unit = 56; g.ox = 0.5; g.oy = 0.74; g.m = { shape:'pyr4', yaw:0.45, pitch:0.3, h:4, pts:[{ n:'M', on:['S', 'A'], k:2 / 3 }, { n:'N', on:['S', 'C'], k:0.5 }, { n:'P', on:['B', 'C'], k:0.5 }], segs:[], task:'section', args:[['M', 'N', 'P']], step:0 }; },
   compile(g){ const Sd = SOLIDS[g.m.shape], fx = Sd && Sd.fixed; if (!g.m.a) g.m.a = 4; if (fx) g.m.h = Sd.h * g.m.a / 4; g.pn = fx ? ['a'] : ['a', 'h']; g.params = { a:g.m.a, h:g.m.h }; if (Sd && Sd.b) { g.pn.push('b'); if (!g.m.b) g.m.b = Sd.b; g.params.b = g.m.b; } if (g.m.net) { g.pn.push('mở'); g.params['mở'] = g.m.u || 0; } },   // a: cạnh đáy; hình lập phương / tứ diện đều không có thanh h (h theo a); hình chữ nhật có thêm b
   handles(){ return []; }, drag(){},
@@ -2798,7 +2809,7 @@ MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5],
       c.setLineDash([]);
       for (const f of pc.faces) if (vis(f)) { path(f.pts, pc.off); c.strokeStyle = ink; c.lineWidth = 2.2; c.stroke(); }
       const [ox, oy] = pr(V3.add(pc.cen, pc.off));
-      const lab = (X, n, col) => { const [x, y] = pr(V3.add(X, pc.off)), dx = x - ox, dy = y - oy, l = Math.hypot(dx, dy) || 1; c.beginPath(); c.arc(x, y, 3.2, 0, 7); c.fillStyle = col; c.fill(); c.font = '600 17px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(n, x + dx / l * 17, y + dy / l * 17); };
+      const lab = (X, n, col) => { const [x, y] = pr(V3.add(X, pc.off)), dx = x - ox, dy = y - oy, l = Math.hypot(dx, dy) || 1; c.beginPath(); c.arc(x, y, 3.2, 0, 7); c.fillStyle = col; c.fill(); c.font = 'italic 600 20px ' + MATHF; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(n, x + dx / l * 17, y + dy / l * 17); };
       for (const n of pc.verts) lab(P[n], n, ink);
       for (const n of R.poly) if (P[n] && !pc.verts.includes(n)) lab(P[n], n, org);   // các đỉnh của thiết diện: ghi trên cả hai khối
     }
@@ -3718,7 +3729,8 @@ MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5],
     if (!q) return null; const s = q[1].trim(); return s[0].toUpperCase() + s.slice(1);
   },
   /* --- "mặt đang xét": tìm mặt phẳng mà bước gần nhất làm việc trong đó (đọc từ câu "Trong đáy", "Trong (SHK)", "Tam giác SHK vuông") --- */
-  flatOf(W, steps, nS, task){
+  flatOf(W, steps, nS, task, R){
+    if (task === 'section') return R && R.poly && R.poly.length > 2 && nS >= steps.length && R.poly.every(n => W.P[n]) ? { names:R.poly, title:`Thiết diện ${R.poly.join('')} vẽ phẳng (đúng hình dạng thật)` } : null;   // bài thiết diện: dựng xong thì vẽ riêng thiết diện đúng kích thước
     if (!/^(dist|ang|dihedral)/.test(task || '')) return null;   // chỉ các bài khoảng cách, góc mới cần mặt vẽ phẳng để tính
     const P = W.P, toks = s => (s.match(/[A-Z][′0-9]*/g) || []).filter(n => P[n]);
     for (let i = Math.min(nS, steps.length) - 1; i >= 0; i--) { const t = steps[i].t; let m1;
@@ -3758,7 +3770,7 @@ MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5],
       const along = tt > 0.5 ? [-ab[0] / L, -ab[1] / L] : [ab[0] / L, ab[1] / L], up = [dv[0] / dl, dv[1] / dl], s = S2(end), k = 9; c.strokeStyle = ink; c.lineWidth = 1.3; c.beginPath(); c.moveTo(s[0] + along[0] * k, s[1] - along[1] * k); c.lineTo(s[0] + (along[0] + up[0]) * k, s[1] - (along[1] + up[1]) * k); c.lineTo(s[0] + up[0] * k, s[1] - up[1] * k); c.stroke(); }
     // tên điểm (đẩy ra xa tâm) và độ dài các đoạn chính
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    for (const k of names) { const s = S2(k), dx = s[0] - cen[0], dy = s[1] - cen[1], l = Math.hypot(dx, dy) || 1; c.beginPath(); c.arc(s[0], s[1], 2.5, 0, 7); c.fillStyle = ink; c.fill(); c.font = '600 13px ' + FONT; c.fillText(k, s[0] + dx / l * 12, s[1] + dy / l * 12); }
+    for (const k of names) { const s = S2(k), dx = s[0] - cen[0], dy = s[1] - cen[1], l = Math.hypot(dx, dy) || 1; c.beginPath(); c.arc(s[0], s[1], 2.5, 0, 7); c.fillStyle = ink; c.fill(); c.font = 'italic 600 16px ' + MATHF; c.fillText(k, s[0] + dx / l * 12, s[1] + dy / l * 12); }
     const Lt = x => OX_isInt(x) ? fmt(x) : OX_isInt(x * x) ? OX_sqrtTxt(x * x) : fmt(x); c.font = '500 11px ' + FONT;
     for (const [u, w, kind] of segs) { if (kind === 'aux' || (kind === 'edge' && !tri)) continue; const a = S2(u), b = S2(w), tt = [0.5, 0.27, 0.73].find(t => !names.some(k => { const q = S2(k); return Math.hypot(q[0] - (a[0] + (b[0] - a[0]) * t), q[1] - (a[1] + (b[1] - a[1]) * t)) < 16; })) || 0.5, mx = a[0] + (b[0] - a[0]) * tt, my = a[1] + (b[1] - a[1]) * tt, nx = -(b[1] - a[1]), ny = b[0] - a[0], nl = Math.hypot(nx, ny) || 1, sg = (mx - cen[0]) * nx + (my - cen[1]) * ny >= 0 ? 1 : -1;   // số đo đặt ở giữa đoạn; nếu giữa đoạn có một điểm (chân đường cao) thì lùi về 1/4
       c.fillStyle = kind === 'step' ? green : B.label; c.fillText(Lt(V3.len(V3.sub(P[u], P[w]))), mx + sg * nx / nl * 11, my + sg * ny / nl * 11); }
@@ -3770,9 +3782,9 @@ MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5],
     const pr = X => this.proj(g, X), dash = (A, Bq, col, w) => { const vis = this.segVisible(g, W, A, Bq), [ax, ay] = pr(A), [bx, by] = pr(Bq); c.strokeStyle = col; c.lineWidth = w || 2.2; c.setLineDash(vis ? [] : [7, 6]); c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke(); c.setLineDash([]); };
     const thin = (A, Bq, col) => { const [ax, ay] = pr(A), [bx, by] = pr(Bq); c.strokeStyle = col; c.lineWidth = 1.3; c.setLineDash([3, 4]); c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke(); c.setLineDash([]); };
     const dot = (X, col, r) => { const [x, y] = pr(X); c.beginPath(); c.arc(x, y, r || 4, 0, 7); c.fillStyle = col; c.fill(); };
-    const label = (n, col) => { const X = P[n], [x, y] = pr(X), dir = V3.sub(X, W.cen), [cx, cy] = pr(W.cen), dx = x - cx, dy = y - cy, l = Math.hypot(dx, dy) || 1, big = !m.text; c.font = `600 ${big ? 18 : 15}px ` + FONT; c.fillStyle = col || ink; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(n, x + (big ? 18 : 15) * dx / l, y + (big ? 18 : 15) * dy / l); };   // tên điểm to hơn khi chỉ xem hình
+    const label = (n, col) => { const X = P[n], [x, y] = pr(X), dir = V3.sub(X, W.cen), [cx, cy] = pr(W.cen), dx = x - cx, dy = y - cy, l = Math.hypot(dx, dy) || 1, big = !m.text; c.font = `italic 600 ${big ? 21 : 18}px ` + MATHF; c.fillStyle = col || ink; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(n, x + (big ? 18 : 15) * dx / l, y + (big ? 18 : 15) * dy / l); };   // tên điểm to hơn khi chỉ xem hình
     const R = this.solve(g, W), shown = this.stepsShown(g, R), nS = hid ? 0 : shown.n, askQ = hid ? null : shown.q, lines = [[org, W.Sd.name + (W.Sd.free ? '' : `  (a = ${fmt(m.a)}, h = ${fmt(m.h)}${W.Sd.b ? ', b = ' + fmt(m.b) : ''})`)]];
-    { const FS = m.fs || 15; c.font = `500 ${FS}px ` + FONT; let nl = 1 + Math.ceil((c.measureText(lines[0][1]).width + 30) / (g.w - 250)) + (R.title ? 1 : 0) + 2; if (m.text) for (let i = 0; i < nS; i++) nl += Math.ceil((c.measureText(R.steps[i].t).width + 30) / (g.w - 40)); const pad = !hid && (R.steps.some(st => st.angle && st.val != null) || this.flatOf(W, R.steps, R.steps.length, m.task)) ? 200 : 0; this.fit(g, W, g.y + 14 + nl * Math.round(FS * 1.47), pad); }   // ước lượng số dòng chữ rồi co hình cho vừa
+    { const FS = m.fs || 15; c.font = `500 ${FS}px ` + FONT; let nl = 1 + Math.ceil((c.measureText(lines[0][1]).width + 30) / (g.w - 250)) + (R.title ? 1 : 0) + 2; if (m.text) for (let i = 0; i < nS; i++) nl += Math.ceil((c.measureText(R.steps[i].t).width + 30) / (g.w - 40)); const pad = !hid && (R.steps.some(st => st.angle && st.val != null) || this.flatOf(W, R.steps, R.steps.length, m.task, R)) ? 200 : 0; this.fit(g, W, g.y + 14 + nl * Math.round(FS * 1.47), pad); }   // ước lượng số dòng chữ rồi co hình cho vừa
     if (R.title) lines.push([ink, R.title]);
     if (m.sp > 0.001 && m.task === 'section' && !hid && R.pl && R.poly && R.poly.length > 2 && this.drawSplit(c, g, B, W, R)) { gLegend(c, g, lines, R.title ? 2 : 1); return; }   // đang tách hai khối theo thiết diện
     // mặt thấy tô nhạt để "đọc" được mặt phẳng; cạnh khuất nét đứt
@@ -3899,7 +3911,7 @@ MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5],
       c.font = '500 11px ' + FONT; c.fillStyle = B.label; const G2 = [(K2[0] + P2[0] + Q2[0]) / 3, (K2[1] + P2[1] + Q2[1]) / 3];
       for (const [U, Vv, L] of [[K2, P2, a1], [K2, Q2, b1], [P2, Q2, c1]]) { const mx = (U[0] + Vv[0]) / 2, my = (U[1] + Vv[1]) / 2, nx = mx - G2[0], ny = my - G2[1], nl = Math.hypot(nx, ny) || 1; c.fillText(fmt(L), mx + nx / nl * 13, my + ny / nl * 13); }   // độ dài cạnh ghi phía ngoài tam giác
     }
-    if (!inset && nS > 0) { const fl = this.flatOf(W, R.steps, nS, m.task); if (fl) this.drawFlat(c, g, W, fl, R.steps.slice(0, nS), B); }   // mặt đang xét vẽ phẳng, đúng kích thước, để học sinh tính
+    if (!inset && nS > 0) { const fl = this.flatOf(W, R.steps, nS, m.task, R); if (fl) this.drawFlat(c, g, W, fl, R.steps.slice(0, nS), B); }   // mặt đang xét vẽ phẳng, đúng kích thước, để học sinh tính
     if (askQ) lines.push([STEP_COL(), `❓ ${askQ}`]);
     if (!hid && R.steps.length) lines.push([B.label, askQ ? 'Học sinh trả lời rồi bấm "Bước ▸" để xem lời giải' : nS < R.steps.length ? `Bấm "Bước ▸" ${m.text ? '' : 'để dựng tiếp trên hình '}(${nS}/${R.steps.length})${m.ask ? ' — câu hỏi hiện trước' : ''}` : m.text ? 'Đã xong. Bấm "⟲" để làm lại từng bước' : 'Đã dựng xong. Bấm "⟲" để dựng lại từng bước']);
     if (R.steps.length === 0 && m.task === 'none') lines.push([B.label, 'Kéo "Xoay" để nhìn hình từ hướng khác; "Dựng" để thêm điểm, nối đoạn, chọn bài toán']);
@@ -5122,6 +5134,18 @@ function openOxyzEditor(g){
 
 /* Xoay hình tới góc nhìn gần dọc theo cạnh của góc (mặt phẳng chứa góc gần song song màn hình → góc hiện gần đúng số đo thật) */
 let unfoldRaf = 0;
+let viewRaf = 0;
+function viewCycle(g, home, before){                   // nút "Góc nhìn" của hình không gian: lần lượt Chuẩn sách → Chính diện → Từ trên → Bên cạnh, xoay êm tới nơi
+  const V = [['Chuẩn sách', home], ['Chính diện', { yaw:0, pitch:0.03 }], ['Từ trên', { yaw:0, pitch:1.4 }], ['Bên cạnh', { yaw:Math.PI / 2, pitch:0.03 }]];
+  const wrap = d => { d %= 2 * Math.PI; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
+  const cur = V.findIndex(v => Math.abs(wrap(g.m.yaw - v[1].yaw)) < 0.03 && Math.abs(g.m.pitch - v[1].pitch) < 0.03), nx = V[(cur + 1) % V.length];   // đang ở góc tự do thì về Chuẩn sách trước
+  const y0 = g.m.yaw, p0 = g.m.pitch, y1 = y0 + wrap(nx[1].yaw - y0), p1 = nx[1].pitch, t0 = performance.now();
+  g.m.yaw = nx[1].yaw; g.m.pitch = p1; undoStack.push({ t:'gm', g, a:before, b:JSON.stringify(g.m) }); redoStack.length = 0; g.m.yaw = y0; g.m.pitch = p0; changed();
+  toast('Góc nhìn: ' + nx[0], false, 1400);
+  cancelAnimationFrame(viewRaf);
+  const tick = now => { if (!graphs.includes(g)) return; const u = Math.min(1, (now - t0) / 380), e = u * u * (3 - 2 * u); g.m.yaw = u < 1 ? y0 + (y1 - y0) * e : nx[1].yaw; g.m.pitch = p0 + (p1 - p0) * e; invalidate('rect', [g.x - 4, g.y - 4, g.x + g.w + 4, g.y + g.h + 4]); if (u < 1) viewRaf = requestAnimationFrame(tick); else scheduleSave(); };
+  viewRaf = requestAnimationFrame(tick);
+}
 let splitRaf = 0;
 function animSplit(g, to){                             // cho độ tách chạy êm tới 1 (rời hẳn) hoặc về 0 (ghép lại) trong khoảng 0,7 giây
   cancelAnimationFrame(splitRaf); const t0 = performance.now(), from = g.m.sp || 0;
@@ -5520,7 +5544,7 @@ renderRecent();
 /* "Hay dùng" do thầy tự ghim: bấm nút bốn ô vuông trên thanh là thấy. Ghim được hình mẫu (S|tên), mô hình (M|loại) và các dụng cụ trong menu ⋯ (U|chỗ của nút trong menu).
    Muốn thêm một dụng cụ trong menu vào danh sách chọn được: thêm một dòng vào FAV_MENU bên dưới. */
 const FAV_KEY = 'dmath-slate-fav';
-const FAV_MENU = ['[data-kit="ruler"]', '[data-kit="eke"]', '[data-kit="pro"]', '#coverAdd', '[data-widget="clock"]', '[data-widget="timer"]', '[data-widget="spot"]', '#imgOpen', '#pdfOpen', '#calcLink', '#webBtn', '#recBtn', '#recsBtn', '#fullBtn', '#expPdf', '#expPng', '[data-pattern="grid"]', '[data-pattern="lines"]', '[data-pattern="none"]'];
+const FAV_MENU = ['[data-kit="ruler"]', '[data-kit="eke"]', '[data-kit="pro"]', '#coverAdd', '[data-widget="clock"]', '[data-widget="timer"]', '[data-widget="spot"]', '[data-widget="calc"]', '#imgOpen', '#pdfOpen', '#calcLink', '#webBtn', '#recBtn', '#recsBtn', '#fullBtn', '#expPdf', '#expPng', '[data-pattern="grid"]', '[data-pattern="lines"]', '[data-pattern="none"]'];
 let favs = ['S|Bảng biến thiên', 'S|Hệ trục Oxy', 'U|[data-kit="ruler"]', 'U|[data-kit="eke"]', 'U|#coverAdd', 'M|solid'];   // lúc đầu; thầy sửa bằng nút "Sửa"
 try { const r = JSON.parse(localStorage.getItem(FAV_KEY) || 'null'); if (Array.isArray(r)) favs = r; } catch (_) {}
 const favEl = sel => document.querySelector('#menu ' + sel);
@@ -5798,8 +5822,55 @@ function makeWidget(name, title, left, top){
   dragBy(el.querySelector('.whead'), el); $('wlayer').appendChild(el); widgets[name] = el; return el;
 }
 const two = n => String(n).padStart(2, '0');
+/* Máy tính khoa học: gõ biểu thức bằng nút, bấm = để tính. Dùng chung bộ đọc công thức với phần Đồ thị (parseExpr).
+   Dòng vàng dưới kết quả là dạng "đẹp" nếu có: phân số, căn, bội của π. Nút Độ / Rad đổi đơn vị góc. */
+function calcNice(v){                                  // dạng đẹp của một số: phân số p/q, căn a√b/c, bội của π; không có thì trả ''
+  if (!isFinite(v) || Math.abs(v - Math.round(v)) < 1e-11 || Math.abs(v) > 1e7) return '';
+  const frac = (x, qmax) => { let h0 = 0, h1 = 1, k0 = 1, k1 = 0, y = Math.abs(x); for (let i = 0; i < 24; i++) { const a = Math.floor(y), h2 = a * h1 + h0, k2 = a * k1 + k0; if (k2 > qmax) break; h0 = h1; h1 = h2; k0 = k1; k1 = k2; const r = y - a; if (r < 1e-12) break; y = 1 / r; } return Math.abs(Math.abs(x) - h1 / k1) < 1e-11 * Math.max(1, Math.abs(x)) ? [h1, k1] : null; };
+  const sg = v < 0 ? '−' : '', f = frac(v, 9999); if (f) return `${sg}${f[0]}/${f[1]}`;
+  const p = frac(v / Math.PI, 24); if (p) return `${sg}${p[0] === 1 ? '' : p[0]}π${p[1] > 1 ? '/' + p[1] : ''}`;
+  const q = frac(v * v, 400); if (q) { let n = q[0] * q[1], k = 1; for (let d = Math.floor(Math.sqrt(n)); d >= 2; d--) if (n % (d * d) === 0) { k = d; n /= d * d; break; } const g = (a, b) => b ? g(b, a % b) : a, gg = g(k, q[1]), kk = k / gg, den = q[1] / gg; return `${sg}${kk === 1 ? '' : kk}√${n}${den > 1 ? '/' + den : ''}`; }
+  return '';
+}
+function calcEval(src, deg, ans){
+  const an = isFinite(ans) ? (Math.abs(ans) < 1e-6 || Math.abs(ans) >= 1e15 ? ans.toFixed(18) : String(ans)) : '0';
+  const t = src.replace(/Ans/g, '(' + an + ')'), saved = {}, k = Math.PI / 180;
+  if (deg) for (const [n, f] of [['sin', v => Math.sin(v * k)], ['cos', v => Math.cos(v * k)], ['tan', v => Math.tan(v * k)], ['cot', v => 1 / Math.tan(v * k)], ['arcsin', v => Math.asin(v) / k], ['arccos', v => Math.acos(v) / k], ['arctan', v => Math.atan(v) / k]]) { saved[n] = FUNCS[n]; FUNCS[n] = f; }
+  try { const pe = parseExpr(t); if (pe.params.length) throw new Error('Có chữ lạ trong biểu thức.'); let v = pe.f(0, {}); if (!isFinite(v)) throw new Error('Không tính được (chia cho 0 hoặc ngoài miền xác định).'); if (Math.abs(v) < 1e-13) v = 0; return +v.toPrecision(13); }
+  finally { for (const n in saved) FUNCS[n] = saved[n]; }
+}
+function openCalc(){
+  const el = makeWidget('calc', 'Máy tính', Math.max(12, cw - 330), 14), body = el.querySelector('.wbody');
+  const K = [['Độ', 'mode', 'fn'], ['(', '(', 'fn'], [')', ')', 'fn'], ['⌫', 'del', 'fn'], ['AC', 'ac', 'fn'],
+             ['sin', 'sin(', 'fn'], ['cos', 'cos(', 'fn'], ['tan', 'tan(', 'fn'], ['√', '√(', 'fn'], ['x²', '²', 'fn'],
+             ['ln', 'ln(', 'fn'], ['log', 'log(', 'fn'], ['xʸ', '^', 'fn'], ['π', 'π', 'fn'], ['e', 'e', 'fn'],
+             ['7', '7'], ['8', '8'], ['9', '9'], ['÷', '÷', 'op'], ['|x|', '|', 'fn'],
+             ['4', '4'], ['5', '5'], ['6', '6'], ['×', '×', 'op'], ['x⁻¹', '^(-1)', 'fn'],
+             ['1', '1'], ['2', '2'], ['3', '3'], ['−', '−', 'op'], ['Ans', 'Ans', 'fn'],
+             ['0', '0'], [',', ','], ['cot', 'cot(', 'fn'], ['+', '+', 'op'], ['=', 'eq', 'eq']];
+  body.innerHTML = '<div class="calcscr"><div class="ex"></div><div class="rs">0</div><div class="nx"></div></div><div class="calc">' + K.map(([l, v, c]) => `<button data-k="${v}" class="${c || ''}">${l}</button>`).join('') + '</div>';
+  const ex = body.querySelector('.ex'), rs = body.querySelector('.rs'), nx = body.querySelector('.nx'), modeB = body.querySelector('[data-k="mode"]');
+  const st = { e:'', ans:0, deg:true, done:false };
+  const show = () => { ex.textContent = st.e || ' '; ex.scrollLeft = 1e6; };
+  body.querySelector('.calc').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return; const k = b.dataset.k;
+    if (k === 'mode') { st.deg = !st.deg; modeB.textContent = st.deg ? 'Độ' : 'Rad'; return; }
+    if (k === 'ac') { st.e = ''; rs.textContent = '0'; nx.textContent = ''; st.done = false; show(); return; }
+    if (k === 'del') { st.e = st.done ? '' : st.e.replace(/(Ans|sin\(|cos\(|tan\(|cot\(|ln\(|log\(|√\(|\^\(-1\)|[\s\S])$/, ''); st.done = false; show(); return; }
+    if (k === 'eq') {
+      if (!st.e) return;
+      try { const v = calcEval(st.e, st.deg, st.ans); st.ans = v; rs.textContent = String(v).replace('.', ',').replace(/e\+?(-?\d+)/, '×10^$1'); nx.textContent = (s2 => s2 ? '= ' + s2 : '')(calcNice(v)); st.done = true; }
+      catch (err) { rs.textContent = 'Lỗi'; nx.textContent = (err && err.message) || ''; st.done = false; }
+      return;
+    }
+    if (st.done) { st.e = /^[+−×÷^²]/.test(k) ? 'Ans' : ''; st.done = false; }   // vừa tính xong: bấm phép tính thì tính tiếp từ kết quả, bấm số thì bắt đầu phép mới
+    st.e += k; show();
+  });
+  show();
+}
 function openWidget(name){
   if (name === 'spot') return openSpot();
+  if (name === 'calc') return openCalc();
   if (name === 'clock') {                              // đồng hồ kim + số, cập nhật mỗi giây
     const el = makeWidget('clock', 'Đồng hồ', cw - 184, 14), body = el.querySelector('.wbody');
     body.innerHTML = '<canvas width="280" height="280" style="width:140px;height:140px"></canvas><div class="big" style="font-size:26px"></div>';
