@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v109 -->
+<!-- dmath Slate, bản web v110 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -236,7 +236,10 @@ body.present .bar{display:none}
 .ptime{font-variant-numeric:tabular-nums}
 @media (max-width:900px){.pname{display:none}.pb{padding-inline:9px;min-width:42px}}
 body.player .bar{display:none}
+body.viewer #pCut,body.viewer #pAddMark,body.viewer #pMarks .danger{display:none}   /* người xem qua link: không có nút cắt, thêm, bỏ mục */
+@media (max-width:600px){.pbar{gap:4px;padding-left:6px;padding-right:6px}.pb{min-width:40px;padding-inline:6px;font-size:13px}#pTime{font-size:11px}}   /* điện thoại */
 body.player .glayer{display:none}
+body.player .hint{display:none}
 body.player .clayer{pointer-events:none}
 </style>
 
@@ -466,7 +469,15 @@ body.player .clayer{pointer-events:none}
     <h3 style="margin:0">Bài ghi đã lưu</h3>
     <div class="rows" id="recList"></div>
     <div class="chips"><button class="chip go" id="recNew">Ghi bài giảng mới</button><button class="chip" id="recOpen">Mở bài ghi từ tệp</button></div>
+    <button class="row" id="ghOpen" style="margin-top:8px">Cài đặt đưa lên mạng <small>kho GitHub, mã khoá</small></button>
     <input type="file" id="recIn" hidden>
+  </div>
+  <div class="menu books" id="ghsetup" hidden>
+    <h3 style="margin:0">Đưa bài ghi lên mạng</h3>
+    <p class="rnote">Bài ghi sẽ nằm trong một kho GitHub công khai của thầy. Nhập một lần, lần sau chỉ bấm "Link".</p>
+    <div class="gf"><label for="ghRepo">Kho (tên-tài-khoản/tên-kho)</label><input type="text" id="ghRepo" placeholder="dphanminhthuhoai/baigiang" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+    <div class="gf"><label for="ghToken">Mã khoá GitHub (chỉ lưu trong máy này)</label><input type="password" id="ghToken" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+    <div class="chips"><button class="chip go" id="ghSave">Lưu</button><button class="chip" id="ghClose">Đóng</button></div>
   </div>
   <div class="menu" id="pList" hidden><h3>Mục đã đánh dấu</h3><div class="rows" id="pMarks"></div><div class="chips" style="margin-top:8px"><button class="chip go" id="pAddMark">Đánh dấu chỗ này</button></div></div>
   <div class="selbar" id="clipbar" style="left:50%;top:10px" hidden>
@@ -6397,38 +6408,103 @@ let recRen = null, recDel = null;                     // bài đang đổi tên;
 function renderRecs(){
   $('recList').innerHTML = recIndex.length ? recIndex.map(m => m.id === recRen
     ? `<div class="brow gf" data-id="${m.id}"><input type="text" id="recRenIn" maxlength="80" value="${esc(m.name)}" autocomplete="off" spellcheck="false" aria-label="Tên bài ghi"><button data-b="save">Lưu</button></div>`
-    : `<div class="brow" data-id="${m.id}"><button class="bopen" data-b="open"><b>${esc(m.name)}</b><small>${fmtT(m.dur)} · ${stamp(m.date)}${m.sound ? '' : ' · không tiếng'}${m.partial ? ' · đang ghi' : ''}</small></button><button data-b="exp" title="Xuất thành tệp để gửi học sinh">Gửi</button><button data-b="ren">Tên</button><button data-b="del" class="danger">${recDel === m.id ? 'Xoá thật?' : 'Xoá'}</button></div>`
+    : `<div class="brow" data-id="${m.id}"><button class="bopen" data-b="open"><b>${esc(m.name)}</b><small>${fmtT(m.dur)} · ${stamp(m.date)}${m.sound ? '' : ' · không tiếng'}${m.partial ? ' · đang ghi' : ''}</small></button><button data-b="link" title="Đưa lên mạng để lấy link gửi học sinh">Link</button><button data-b="exp" title="Xuất thành tệp để gửi qua Zalo">Tệp</button><button data-b="ren">Tên</button><button data-b="del" class="danger">${recDel === m.id ? 'Xoá thật?' : 'Xoá'}</button></div>`
+  + (m.id === recLinkId && m.link ? `<div class="brow gf" data-id="${m.id}"><input type="text" id="recLinkIn" readonly value="${esc(m.link)}" aria-label="Link bài ghi"><button data-b="copy">Chép</button><button data-b="again" title="Đưa lên lại sau khi thầy sửa mục, cắt đoạn">Cập nhật</button></div>` : '')
   ).join('') : '<p class="rnote">Chưa có bài ghi nào. Bấm "Ghi bài giảng mới" rồi giảng như bình thường; xong bấm Dừng.</p>';
   $('recNew').textContent = rec ? 'Đang ghi…' : 'Ghi bài giảng mới';
 }
-function openRecs(){ $('menu').hidden = true; recRen = recDel = null; renderRecs(); $('recs').hidden = false; }
+function openRecs(){ $('menu').hidden = true; recRen = recDel = null; recLinkId = null; renderRecs(); $('recs').hidden = false; }
 async function recDelete(id){ recIndex = recIndex.filter(x => x.id !== id); await recSaveIndex(); idb('readwrite', st => st.delete('rec-' + id)).catch(() => {}); recDropParts(id); renderRecs(); }
-async function recExport(id){                         // gói bài ghi thành MỘT tệp: phần đầu ghi độ dài, rồi dữ liệu bảng (JSON), rồi tiếng
+async function recPack(id){                           // gói bài ghi thành MỘT tệp: phần đầu ghi độ dài, rồi dữ liệu bảng (JSON), rồi tiếng
+  const R = await idb('readonly', st => st.get('rec-' + id)); if (!R) throw 0;
+  const pack = { app:'dmath-slate-rec', v:1, meta:R.meta, data:R.data, images:[], bg:null, audioType:R.audio ? R.audio.type : '' };
+  for (const im of R.images || []) pack.images.push({ id:im.id, type:im.blob.type, b64:await toB64(im.blob) });
+  if (R.bg) pack.bg = { name:R.bg.name, b64:await toB64(new Blob([R.bg.data])) };
+  const js = new Blob([JSON.stringify(pack)]), head = 'DMREC1 ' + String(js.size).padStart(12, '0') + '\n';
+  return { name:R.meta.name, blob:new Blob([head, js, ...(R.audio ? [R.audio] : [])], { type:'application/octet-stream' }) };
+}
+async function recExport(id){
   try {
     toast('Đang gói bài ghi…', true);
-    const R = await idb('readonly', st => st.get('rec-' + id)); if (!R) throw 0;
-    const pack = { app:'dmath-slate-rec', v:1, meta:R.meta, data:R.data, images:[], bg:null, audioType:R.audio ? R.audio.type : '' };
-    for (const im of R.images || []) pack.images.push({ id:im.id, type:im.blob.type, b64:await toB64(im.blob) });
-    if (R.bg) pack.bg = { name:R.bg.name, b64:await toB64(new Blob([R.bg.data])) };
-    const js = new Blob([JSON.stringify(pack)]), head = 'DMREC1 ' + String(js.size).padStart(12, '0') + '\n';
-    const data = new Blob([head, js, ...(R.audio ? [R.audio] : [])], { type:'application/octet-stream' }), filename = R.meta.name.replace(/[\\/:*?"<>|]/g, '-').trim() + '.dmathrec';
+    const pk = await recPack(id), data = pk.blob, filename = pk.name.replace(/[\\/:*?"<>|]/g, '-').trim() + '.dmathrec';
     if (downloads) await downloads.save({ filename, data }); else if (STANDALONE) await webSave(filename, data); else throw { code:'unavailable' };
     toast('Đã xuất ' + filename + '. Gửi tệp này cho học sinh; các em mở trang bảng → ⋯ → Bài ghi đã lưu → Mở bài ghi từ tệp.', false, 8000);
   } catch (e) { if (!e || e.code !== 'declined') toast('Chưa xuất được bài ghi ở chế độ xem này.'); else $('toast').hidden = true; }
 }
+async function recParse(file){                        // đọc một tệp bài ghi (từ máy hoặc tải từ link) thành bài ghi xem được
+  const head = await file.slice(0, 20).text(); if (!head.startsWith('DMREC1 ')) throw 0;
+  const n = parseInt(head.slice(7, 19), 10), pack = JSON.parse(await file.slice(20, 20 + n).text());
+  if (!pack || pack.app !== 'dmath-slate-rec' || !pack.data) throw 0;
+  const audio = file.size > 20 + n ? file.slice(20 + n, file.size, pack.audioType || 'audio/mp4') : null;
+  const id = newId(), meta = { id, name:String(pack.meta.name || 'Bài ghi').slice(0, 80), dur:pack.meta.dur, date:pack.meta.date || Date.now(), sound:!!audio };
+  return { meta, data:pack.data, audio, images:(pack.images || []).map(im => ({ id:im.id, blob:fromB64(im.b64, im.type) })), bg:pack.bg ? { name:pack.bg.name, data:await fromB64(pack.bg.b64).arrayBuffer() } : null };
+}
 async function recImport(file){
   try {
     toast('Đang mở bài ghi…', true);
-    const head = await file.slice(0, 20).text(); if (!head.startsWith('DMREC1 ')) throw 0;
-    const n = parseInt(head.slice(7, 19), 10), pack = JSON.parse(await file.slice(20, 20 + n).text());
-    if (!pack || pack.app !== 'dmath-slate-rec' || !pack.data) throw 0;
-    const audio = file.size > 20 + n ? file.slice(20 + n, file.size, pack.audioType || 'audio/mp4') : null;
-    const id = newId(), meta = { id, name:String(pack.meta.name || 'Bài ghi').slice(0, 80), dur:pack.meta.dur, date:pack.meta.date || Date.now(), sound:!!audio };
-    const R = { meta, data:pack.data, audio, images:(pack.images || []).map(im => ({ id:im.id, blob:fromB64(im.b64, im.type) })), bg:pack.bg ? { name:pack.bg.name, data:await fromB64(pack.bg.b64).arrayBuffer() } : null };
-    try { await idb('readwrite', st => st.put(R, 'rec-' + id)); recIndex.unshift(meta); await recSaveIndex(); } catch (_) {}   // không cất được vào kho thì vẫn cho xem lần này
+    const R = await recParse(file);
+    try { await idb('readwrite', st => st.put(R, 'rec-' + R.meta.id)); recIndex.unshift(R.meta); await recSaveIndex(); } catch (_) {}   // không cất được vào kho thì vẫn cho xem lần này
     $('toast').hidden = true; await playEnter(R);
   } catch (_) { toast('Tệp này không phải bài ghi của dmath Slate (đuôi .dmathrec).'); }
 }
+
+/* ----- Đưa bài ghi lên mạng (kho GitHub của thầy) để học sinh bấm link là xem -----
+   Tệp bài ghi được đưa vào thư mục rec/ của một kho GitHub công khai. Link gửi học sinh có dạng  <địa chỉ bảng>?rec=<chủ kho>/<tên kho>/<mã bài ghi>.
+   "Mã khoá" (token) để ghi vào kho chỉ nằm trong máy của thầy, không nằm trong tệp sổ hay bài ghi, không gửi đi đâu ngoài GitHub. */
+const GH_KEY = 'dmath-slate-gh';
+function ghConf(){ try { const c = JSON.parse(localStorage.getItem(GH_KEY) || 'null'); return c && c.repo && c.token ? c : null; } catch (_) { return null; } }
+function ghLink(c, id){ return location.origin + location.pathname + '?rec=' + c.repo + '/' + id; }
+function ghCall(method, url, token, body, onProg){     // một lần gọi GitHub; onProg(phần đã gửi 0..1) để báo tiến độ lúc đưa tệp lên
+  return new Promise((ok, fail) => {
+    const x = new XMLHttpRequest(); x.open(method, url); x.setRequestHeader('Authorization', 'Bearer ' + token); x.setRequestHeader('Accept', 'application/vnd.github+json');
+    if (onProg) x.upload.onprogress = e => { if (e.lengthComputable) onProg(e.loaded / e.total); };
+    x.onload = () => { let j = null; try { j = JSON.parse(x.responseText); } catch (_) {} ok({ status:x.status, json:j }); };
+    x.onerror = () => fail(new Error('net')); x.send(body || null);
+  });
+}
+let ghBusy = false;
+async function recUpload(id){
+  const c = ghConf(); if (!c) { openGhSetup(); return; }
+  if (ghBusy) return; ghBusy = true;
+  try {
+    toast('Đang gói bài ghi…', true);
+    const data = await recPack(id), b64 = await toB64(data.blob);
+    if (data.blob.size > 95e6) throw { msg:'Bài ghi nặng hơn 95 MB, GitHub không nhận. Thầy cắt buổi ghi thành hai phần ngắn hơn.' };
+    const api = `https://api.github.com/repos/${c.repo}/contents/rec/${id}.dmathrec`;
+    const old = await ghCall('GET', api, c.token);     // đã đưa lên trước đó thì phải kèm "dấu" của bản cũ mới ghi đè được
+    if (old.status === 401) throw { msg:'GitHub không nhận mã khoá (sai hoặc đã hết hạn). Thầy tạo mã mới rồi nhập lại.', setup:true };
+    const body = JSON.stringify({ message:'Bài ghi: ' + data.name, content:b64, ...(old.status === 200 && old.json && old.json.sha ? { sha:old.json.sha } : {}) });
+    const r = await ghCall('PUT', api, c.token, body, f => toast(`Đang đưa lên mạng… ${Math.round(f * 100)}% của ${(data.blob.size / 1e6).toFixed(1)} MB`, true));
+    if (r.status !== 200 && r.status !== 201) throw { msg:r.status === 404 ? `Không thấy kho "${c.repo}" hoặc mã khoá chưa được quyền ghi vào kho đó.` : r.status === 403 ? 'GitHub từ chối: mã khoá chưa có quyền "Contents: Read and write" cho kho này.' : r.status === 413 || r.status === 422 ? 'GitHub không nhận tệp này (quá nặng hoặc kho đã đầy).' : 'GitHub báo lỗi ' + r.status + '.', setup:r.status === 404 || r.status === 403 };
+    const m = recIndex.find(x => x.id === id); if (m) { m.link = ghLink(c, id); await recSaveIndex(); }
+    $('toast').hidden = true; showRecLink(id);
+  } catch (e) { toast(e && e.msg ? e.msg : 'Chưa đưa lên được: kiểm tra mạng rồi thử lại.', false, 8000); if (e && e.setup) openGhSetup(); }
+  ghBusy = false;
+}
+let recLinkId = null;                                  // bài ghi đang hiện ô link trong danh sách
+function showRecLink(id){ recLinkId = id; recRen = recDel = null; renderRecs(); $('recs').hidden = false; const i = $('recLinkIn'); if (i) { i.focus(); i.select(); } }
+function openGhSetup(){ const c = (() => { try { return JSON.parse(localStorage.getItem(GH_KEY) || 'null') || {}; } catch (_) { return {}; } })(); $('ghRepo').value = c.repo || ''; $('ghToken').value = c.token || ''; $('recs').hidden = true; $('menu').hidden = true; $('ghsetup').hidden = false; }
+async function recFromLink(q){                         // học sinh mở link: tải bài ghi từ kho rồi vào thẳng chế độ xem lại
+  const mt = /^([\w.-]+)\/([\w.-]+)\/([\w-]+)$/.exec(q || ''); if (!mt) { toast('Link bài ghi không đúng dạng.'); return; }
+  try {
+    toast('Đang tải bài ghi…', true);
+    const res = await fetch(`https://raw.githubusercontent.com/${mt[1]}/${mt[2]}/main/rec/${mt[3]}.dmathrec`, { cache:'no-cache' }); if (!res.ok) throw { msg:res.status === 404 ? 'Không tìm thấy bài ghi này (có thể thầy đã gỡ, hoặc link bị thiếu chữ).' : 'Chưa tải được bài ghi (lỗi ' + res.status + ').' };
+    const total = +res.headers.get('content-length') || 0, parts = []; let got = 0;
+    if (res.body && res.body.getReader) { const rd = res.body.getReader(); for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; toast('Đang tải bài ghi… ' + (total ? Math.round(got / total * 100) + '%' : (got / 1e6).toFixed(1) + ' MB'), true); } }
+    else parts.push(await res.arrayBuffer());
+    const R = await recParse(new Blob(parts)); $('toast').hidden = true;
+    await playEnter(R); if (player) { player.viewer = true; document.body.classList.add('viewer'); }
+  } catch (e) { toast(e && e.msg ? e.msg : 'Chưa tải được bài ghi: kiểm tra mạng rồi mở lại link.', false, 8000); }
+}
+$('ghSave').onclick = () => {
+  const repo = $('ghRepo').value.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\/+$/, ''), token = $('ghToken').value.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast('Tên kho phải có dạng  tên-tài-khoản/tên-kho  (ví dụ dphanminhthuhoai/baigiang).'); return; }
+  if (token.length < 20) { toast('Mã khoá chưa đúng: dán nguyên chuỗi GitHub cấp (bắt đầu bằng github_pat_ hoặc ghp_).'); return; }
+  try { localStorage.setItem(GH_KEY, JSON.stringify({ repo, token })); } catch (_) {}
+  $('ghsetup').hidden = true; toast('Đã lưu. Giờ bấm "Link" ở bài ghi để đưa lên mạng.', false, 5000); openRecs();
+};
+$('ghClose').onclick = () => { $('ghsetup').hidden = true; };
+$('ghOpen').onclick = openGhSetup;
 
 /* ----- Xem lại ----- */
 function playObj(id){ const P = player; let o = P.objs[id]; if (!o) { o = P.objs[id] = { ...P.D.items[id] }; computeBB(o); } return o; }
@@ -6494,7 +6570,7 @@ async function playEnter(R){
 async function playExit(){
   const P = player; if (!P) return;
   cancelAnimationFrame(P.raf); if (P.audio) { P.audio.pause(); P.audio.src = ''; URL.revokeObjectURL(P.url); }
-  player = null; document.body.classList.remove('player'); $('pbar').hidden = true; $('pList').hidden = true;
+  player = null; document.body.classList.remove('player', 'viewer'); $('pbar').hidden = true; $('pList').hidden = true;
   ready = false; await loadBoard(curId); ready = true;   // trả lại sổ đang mở lúc trước
 }
 function playTime(){ const P = player; return P.audio && P.playing && !P.noAudio ? P.audio.currentTime * 1000 : P.playing ? P.tAt + (performance.now() - P.clock0) * P.speed : P.t; }
@@ -6554,6 +6630,9 @@ $('recList').addEventListener('click', async e => {
   const b = e.target.closest('button'), row = e.target.closest('.brow'); if (!b || !row) return; const id = row.dataset.id, m = recIndex.find(x => x.id === id); if (!m) return;
   if (b.dataset.b === 'open') { if (m.partial) { toast('Bài này đang ghi dở.'); return; } const R = await idb('readonly', st => st.get('rec-' + id)).catch(() => null); if (!R) { toast('Không đọc được bài ghi này trong kho của trình duyệt.'); return; } playEnter(R); }
   else if (b.dataset.b === 'exp') recExport(id);
+  else if (b.dataset.b === 'link') { if (m.partial) return; if (m.link && recLinkId !== id) showRecLink(id); else if (m.link) { recLinkId = null; renderRecs(); } else recUpload(id); }
+  else if (b.dataset.b === 'again') recUpload(id);
+  else if (b.dataset.b === 'copy') { const v = m.link || ''; (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast('Đã chép link. Dán vào Zalo gửi học sinh.'), () => { const i = $('recLinkIn'); i.focus(); i.select(); try { document.execCommand('copy'); toast('Đã chép link.'); } catch (_) { toast('Giữ tay vào ô link rồi chọn Sao chép.'); } }); }
   else if (b.dataset.b === 'ren') { recRen = id; recDel = null; renderRecs(); const i = $('recRenIn'); if (i) { i.focus(); i.select(); } }
   else if (b.dataset.b === 'save') { const v = $('recRenIn').value.trim(); if (v) { m.name = v.slice(0, 80); recSaveIndex(); idb('readonly', st => st.get('rec-' + id)).then(R => { if (R) { R.meta.name = m.name; return idb('readwrite', st => st.put(R, 'rec-' + id)); } }).catch(() => {}); } recRen = null; renderRecs(); }
   else if (b.dataset.b === 'del') { if (recDel === id) { recDel = null; recDelete(id); } else { recDel = id; renderRecs(); } }
@@ -6610,7 +6689,8 @@ async function boot(){
     penW = clamp(+pref.penW || 0, 0, 16); hlW = clamp(+pref.hlW || 0, 0, 60); penA = clamp(+pref.penA || 1, 0.1, 1); hlA = clamp(+pref.hlA || 0.35, 0.1, 1); penDash = DASHES[pref.penDash] ? pref.penDash : ''; penGap = clamp(+pref.penGap || 1, 0.4, 3);
   }
   await loadBoard(curId); ready = true;
-  await recLoadIndex(); recRecover();               // bài ghi: nạp danh sách, ráp lại bài ghi dở (nếu lần trước app bị tắt giữa chừng)
+  await recLoadIndex(); recRecover();
+  { const q = new URLSearchParams(location.search).get('rec'); if (q) recFromLink(q); }   // mở bằng link bài ghi: tải về và vào thẳng chế độ xem lại               // bài ghi: nạp danh sách, ráp lại bài ghi dở (nếu lần trước app bị tắt giữa chừng)
 }
 boot();
 // Bản web riêng: đăng kí "người giữ kho" (sw.js) để app được lưu sẵn trong máy, mở được cả khi không có mạng. Trong Claude thì bỏ qua.
