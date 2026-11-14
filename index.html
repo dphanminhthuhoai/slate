@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v119 -->
+<!-- dmath Slate, bản web v120 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -193,15 +193,6 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 .widget button.go{background:var(--accent);color:var(--on-accent)}
 .widget button.on{background:var(--accent);color:var(--on-accent)}
 .widget .tabs button{border-radius:999px}
-.calc{display:grid;grid-template-columns:repeat(5,52px);gap:6px}
-.widget .wbody .calc button{height:44px;min-width:0;padding:0;font:500 16px var(--font);border-radius:10px}
-.widget .wbody .calc button.fn{font-size:14px;color:var(--muted)}
-.widget .wbody .calc button.op{background:var(--chrome-3,#2e3440);color:var(--accent);font-size:19px}
-.widget .wbody .calc button.eq{background:var(--accent);color:var(--on-accent);font-size:20px}
-.calcscr{width:284px;box-sizing:border-box;background:rgba(0,0,0,.28);border-radius:10px;padding:8px 10px;text-align:right;user-select:text;-webkit-user-select:text}
-.calcscr .ex{min-height:20px;font:400 15px var(--font);color:var(--muted);white-space:nowrap;overflow-x:auto;scrollbar-width:none}
-.calcscr .rs{font:600 26px/1.25 var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;overflow-x:auto;scrollbar-width:none}
-.calcscr .nx{min-height:18px;font:500 14px var(--font);color:var(--accent)}
 #spot{position:absolute;z-index:1;pointer-events:none;border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.78);border:2px solid rgba(255,255,255,.35)}
 #spot .grip{position:absolute;pointer-events:auto;touch-action:none;width:46px;height:46px;border-radius:50%;background:var(--accent);color:var(--on-accent);border:0;font:600 20px var(--font);cursor:grab;box-shadow:0 4px 12px rgba(0,0,0,.4)}
 #spot .sbtn{position:absolute;pointer-events:auto;touch-action:manipulation;width:40px;height:40px;border-radius:50%;background:var(--chrome);color:var(--fg);border:1px solid var(--line);font:600 20px var(--font);cursor:pointer}
@@ -368,7 +359,6 @@ body.player .clayer{pointer-events:none}
       <button class="chip" data-widget="clock">Đồng hồ</button>
       <button class="chip" data-widget="timer">Hẹn giờ</button>
       <button class="chip" data-widget="spot">Đèn rọi</button>
-      <button class="chip" data-widget="calc">Máy tính</button>
     </div>
     <button class="row" id="webBtn" style="margin-top:8px" hidden>Mở trang web trong bảng</button>
     <button class="row" id="fullBtn" style="margin-top:8px">Toàn màn hình <small>ẩn thanh công cụ và khung trình duyệt</small></button></div>
@@ -5544,7 +5534,7 @@ renderRecent();
 /* "Hay dùng" do thầy tự ghim: bấm nút bốn ô vuông trên thanh là thấy. Ghim được hình mẫu (S|tên), mô hình (M|loại) và các dụng cụ trong menu ⋯ (U|chỗ của nút trong menu).
    Muốn thêm một dụng cụ trong menu vào danh sách chọn được: thêm một dòng vào FAV_MENU bên dưới. */
 const FAV_KEY = 'dmath-slate-fav';
-const FAV_MENU = ['[data-kit="ruler"]', '[data-kit="eke"]', '[data-kit="pro"]', '#coverAdd', '[data-widget="clock"]', '[data-widget="timer"]', '[data-widget="spot"]', '[data-widget="calc"]', '#imgOpen', '#pdfOpen', '#calcLink', '#webBtn', '#recBtn', '#recsBtn', '#fullBtn', '#expPdf', '#expPng', '[data-pattern="grid"]', '[data-pattern="lines"]', '[data-pattern="none"]'];
+const FAV_MENU = ['[data-kit="ruler"]', '[data-kit="eke"]', '[data-kit="pro"]', '#coverAdd', '[data-widget="clock"]', '[data-widget="timer"]', '[data-widget="spot"]', '#imgOpen', '#pdfOpen', '#calcLink', '#webBtn', '#recBtn', '#recsBtn', '#fullBtn', '#expPdf', '#expPng', '[data-pattern="grid"]', '[data-pattern="lines"]', '[data-pattern="none"]'];
 let favs = ['S|Bảng biến thiên', 'S|Hệ trục Oxy', 'U|[data-kit="ruler"]', 'U|[data-kit="eke"]', 'U|#coverAdd', 'M|solid'];   // lúc đầu; thầy sửa bằng nút "Sửa"
 try { const r = JSON.parse(localStorage.getItem(FAV_KEY) || 'null'); if (Array.isArray(r)) favs = r; } catch (_) {}
 const favEl = sel => document.querySelector('#menu ' + sel);
@@ -5822,55 +5812,8 @@ function makeWidget(name, title, left, top){
   dragBy(el.querySelector('.whead'), el); $('wlayer').appendChild(el); widgets[name] = el; return el;
 }
 const two = n => String(n).padStart(2, '0');
-/* Máy tính khoa học: gõ biểu thức bằng nút, bấm = để tính. Dùng chung bộ đọc công thức với phần Đồ thị (parseExpr).
-   Dòng vàng dưới kết quả là dạng "đẹp" nếu có: phân số, căn, bội của π. Nút Độ / Rad đổi đơn vị góc. */
-function calcNice(v){                                  // dạng đẹp của một số: phân số p/q, căn a√b/c, bội của π; không có thì trả ''
-  if (!isFinite(v) || Math.abs(v - Math.round(v)) < 1e-11 || Math.abs(v) > 1e7) return '';
-  const frac = (x, qmax) => { let h0 = 0, h1 = 1, k0 = 1, k1 = 0, y = Math.abs(x); for (let i = 0; i < 24; i++) { const a = Math.floor(y), h2 = a * h1 + h0, k2 = a * k1 + k0; if (k2 > qmax) break; h0 = h1; h1 = h2; k0 = k1; k1 = k2; const r = y - a; if (r < 1e-12) break; y = 1 / r; } return Math.abs(Math.abs(x) - h1 / k1) < 1e-11 * Math.max(1, Math.abs(x)) ? [h1, k1] : null; };
-  const sg = v < 0 ? '−' : '', f = frac(v, 9999); if (f) return `${sg}${f[0]}/${f[1]}`;
-  const p = frac(v / Math.PI, 24); if (p) return `${sg}${p[0] === 1 ? '' : p[0]}π${p[1] > 1 ? '/' + p[1] : ''}`;
-  const q = frac(v * v, 400); if (q) { let n = q[0] * q[1], k = 1; for (let d = Math.floor(Math.sqrt(n)); d >= 2; d--) if (n % (d * d) === 0) { k = d; n /= d * d; break; } const g = (a, b) => b ? g(b, a % b) : a, gg = g(k, q[1]), kk = k / gg, den = q[1] / gg; return `${sg}${kk === 1 ? '' : kk}√${n}${den > 1 ? '/' + den : ''}`; }
-  return '';
-}
-function calcEval(src, deg, ans){
-  const an = isFinite(ans) ? (Math.abs(ans) < 1e-6 || Math.abs(ans) >= 1e15 ? ans.toFixed(18) : String(ans)) : '0';
-  const t = src.replace(/Ans/g, '(' + an + ')'), saved = {}, k = Math.PI / 180;
-  if (deg) for (const [n, f] of [['sin', v => Math.sin(v * k)], ['cos', v => Math.cos(v * k)], ['tan', v => Math.tan(v * k)], ['cot', v => 1 / Math.tan(v * k)], ['arcsin', v => Math.asin(v) / k], ['arccos', v => Math.acos(v) / k], ['arctan', v => Math.atan(v) / k]]) { saved[n] = FUNCS[n]; FUNCS[n] = f; }
-  try { const pe = parseExpr(t); if (pe.params.length) throw new Error('Có chữ lạ trong biểu thức.'); let v = pe.f(0, {}); if (!isFinite(v)) throw new Error('Không tính được (chia cho 0 hoặc ngoài miền xác định).'); if (Math.abs(v) < 1e-13) v = 0; return +v.toPrecision(13); }
-  finally { for (const n in saved) FUNCS[n] = saved[n]; }
-}
-function openCalc(){
-  const el = makeWidget('calc', 'Máy tính', Math.max(12, cw - 330), 14), body = el.querySelector('.wbody');
-  const K = [['Độ', 'mode', 'fn'], ['(', '(', 'fn'], [')', ')', 'fn'], ['⌫', 'del', 'fn'], ['AC', 'ac', 'fn'],
-             ['sin', 'sin(', 'fn'], ['cos', 'cos(', 'fn'], ['tan', 'tan(', 'fn'], ['√', '√(', 'fn'], ['x²', '²', 'fn'],
-             ['ln', 'ln(', 'fn'], ['log', 'log(', 'fn'], ['xʸ', '^', 'fn'], ['π', 'π', 'fn'], ['e', 'e', 'fn'],
-             ['7', '7'], ['8', '8'], ['9', '9'], ['÷', '÷', 'op'], ['|x|', '|', 'fn'],
-             ['4', '4'], ['5', '5'], ['6', '6'], ['×', '×', 'op'], ['x⁻¹', '^(-1)', 'fn'],
-             ['1', '1'], ['2', '2'], ['3', '3'], ['−', '−', 'op'], ['Ans', 'Ans', 'fn'],
-             ['0', '0'], [',', ','], ['cot', 'cot(', 'fn'], ['+', '+', 'op'], ['=', 'eq', 'eq']];
-  body.innerHTML = '<div class="calcscr"><div class="ex"></div><div class="rs">0</div><div class="nx"></div></div><div class="calc">' + K.map(([l, v, c]) => `<button data-k="${v}" class="${c || ''}">${l}</button>`).join('') + '</div>';
-  const ex = body.querySelector('.ex'), rs = body.querySelector('.rs'), nx = body.querySelector('.nx'), modeB = body.querySelector('[data-k="mode"]');
-  const st = { e:'', ans:0, deg:true, done:false };
-  const show = () => { ex.textContent = st.e || ' '; ex.scrollLeft = 1e6; };
-  body.querySelector('.calc').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return; const k = b.dataset.k;
-    if (k === 'mode') { st.deg = !st.deg; modeB.textContent = st.deg ? 'Độ' : 'Rad'; return; }
-    if (k === 'ac') { st.e = ''; rs.textContent = '0'; nx.textContent = ''; st.done = false; show(); return; }
-    if (k === 'del') { st.e = st.done ? '' : st.e.replace(/(Ans|sin\(|cos\(|tan\(|cot\(|ln\(|log\(|√\(|\^\(-1\)|[\s\S])$/, ''); st.done = false; show(); return; }
-    if (k === 'eq') {
-      if (!st.e) return;
-      try { const v = calcEval(st.e, st.deg, st.ans); st.ans = v; rs.textContent = String(v).replace('.', ',').replace(/e\+?(-?\d+)/, '×10^$1'); nx.textContent = (s2 => s2 ? '= ' + s2 : '')(calcNice(v)); st.done = true; }
-      catch (err) { rs.textContent = 'Lỗi'; nx.textContent = (err && err.message) || ''; st.done = false; }
-      return;
-    }
-    if (st.done) { st.e = /^[+−×÷^²]/.test(k) ? 'Ans' : ''; st.done = false; }   // vừa tính xong: bấm phép tính thì tính tiếp từ kết quả, bấm số thì bắt đầu phép mới
-    st.e += k; show();
-  });
-  show();
-}
 function openWidget(name){
   if (name === 'spot') return openSpot();
-  if (name === 'calc') return openCalc();
   if (name === 'clock') {                              // đồng hồ kim + số, cập nhật mỗi giây
     const el = makeWidget('clock', 'Đồng hồ', cw - 184, 14), body = el.querySelector('.wbody');
     body.innerHTML = '<canvas width="280" height="280" style="width:140px;height:140px"></canvas><div class="big" style="font-size:26px"></div>';
