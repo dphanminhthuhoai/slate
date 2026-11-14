@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v116 -->
+<!-- dmath Slate, bản web v117 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -638,12 +638,13 @@ function scrollToY(worldY){               // cuộn mượt tới một toạ đ
    invalidate(false)        → chỉ lớp trên cùng (nét đang viết, đầu bút) */
 let need = 0, dRect = null, raf = 0, lastV = null;   // need: 0 không, 1 một vùng, 2 chỉ dời, 3 toàn bộ; lastV: vị trí nhìn của lần vẽ gần nhất
 function invalidate(m, rect){
-  if (m === 'pan') need = need === 0 || need === 2 ? 2 : 3;
+  if (m === 'zoom') need = need === 0 || need === 4 ? 4 : 3;
+  else if (m === 'pan') need = need === 0 || need === 2 ? 2 : 3;
   else if (m === 'rect') { if (need <= 1) { need = 1; dRect = dRect ? [Math.min(dRect[0], rect[0]), Math.min(dRect[1], rect[1]), Math.max(dRect[2], rect[2]), Math.max(dRect[3], rect[3])] : rect.slice(); } else need = 3; }
   else if (m) need = 3;
   if (!raf) raf = requestAnimationFrame(frame);
 }
-function frame(ts){ raf = 0; const n = need, r = dRect; need = 0; dRect = null; const t0 = perfOn ? performance.now() : 0; if (n === 3) renderMain(); else if (n === 2) renderPan(); else if (n === 1) renderRect(r); renderOverlay(); if (perfOn) perfFrame(ts, performance.now() - t0, n); }
+function frame(ts){ raf = 0; const n = need, r = dRect; need = 0; dRect = null; const t0 = perfOn ? performance.now() : 0; if (n === 3) renderMain(); else if (n === 4) renderZoom(); else if (n === 2) renderPan(); else if (n === 1) renderRect(r); renderOverlay(); if (perfOn) perfFrame(ts, performance.now() - t0, n); }
 /* Đo độ mượt (bật trong bảng Cài đặt): chỉ tính lúc bút đang chạm bảng.
    Dòng 1: số khung hình mỗi giây và khung chậm nhất; dòng 2: iPad đọc vị trí bút bao nhiêu lần mỗi giây; dòng 3: thời gian app tính toán cho mỗi khung hình. */
 let perfOn = false, perfS = null;
@@ -717,6 +718,36 @@ function renderMain(){
   ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * view.tx, dpr * view.ty);
   paintWorld(ctx, x0, y0, x1, y1, s, true);
   lastV = { tx:view.tx, ty:view.ty, s, w:main.width, h:main.height };
+}
+/* Đang chụm / giãn hai ngón: nếu khung hình nào cũng vẽ lại cả bảng thì hình giật. Thay vào đó giữ một "tấm chụp" của bảng, mỗi khung hình chỉ co giãn tấm chụp theo tay (rất nhẹ),
+   và cứ một lúc mới vẽ lại thật một lần cho nét căng. Nhấc tay thì vẽ lại thật lần cuối. */
+const zcv = document.createElement('canvas'), zctx = zcv.getContext('2d'); let zs = null;
+function renderZoom(){
+  const now = performance.now(), s = S(), W = main.width, H = main.height;
+  if (!zs || zs.w !== W || zs.h !== H || now - zs.t > zs.every) {
+    const t0 = performance.now(); renderMain(); const cost = performance.now() - t0;
+    if (zcv.width !== W || zcv.height !== H) { zcv.width = W; zcv.height = H; }
+    zctx.globalCompositeOperation = 'copy'; zctx.drawImage(main, 0, 0);
+    zs = { tx:view.tx, ty:view.ty, s, w:W, h:H, t:performance.now(), every:Math.max(140, cost * 6) };   // bảng càng nặng thì càng thưa lần vẽ lại thật
+    return;
+  }
+  const k = s / zs.s;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.fillStyle = BOARDS[board].bg; ctx.fillRect(0, 0, W, H);
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(zcv, (view.tx - zs.tx * k) * dpr, (view.ty - zs.ty * k) * dpr, W * k, H * k); ctx.restore();
+  lastV = null;                                        // hình trên màn hình đang là hình co giãn: lần vẽ kế tiếp không được chép lại nó
+}
+function zoomDone(px, py){                             // nhấc tay sau khi phóng: gần 100% thì hít về đúng 100%, rồi vẽ lại nét căng
+  zs = null;
+  if (Math.abs(view.zoom - 1) > 0.004 && Math.abs(view.zoom - 1) < 0.07) zoomTo(1, px, py); else { invalidate(true); scheduleSave(); }
+}
+function zoomTo(target, px, py){                       // phóng êm tới mức target quanh điểm (px, py) trong khoảng 0,18 giây
+  cancelAnimationFrame(anim); const z0 = view.zoom, t0 = performance.now();
+  const step = now => {
+    const u = clamp((now - t0) / 180, 0, 1), e = 1 - Math.pow(1 - u, 3), z = z0 + (target - z0) * e;
+    zoomAt(px, py, z / view.zoom); clampView(); updateNav();
+    if (u < 1) { invalidate('zoom'); anim = requestAnimationFrame(step); } else { zs = null; invalidate(true); scheduleSave(); }
+  };
+  anim = requestAnimationFrame(step);
 }
 const scratch = document.createElement('canvas'), sctx = scratch.getContext('2d');   // khung vẽ phụ: vẽ ô cần sửa ở đây (rộng dư 6 điểm ảnh mỗi phía) rồi chép phần giữa sang màn hình, nhờ vậy mép ô khớp từng điểm ảnh với hình cũ
 function paintRegion(px, py, pw, ph){                // vẽ lại đúng một ô chữ nhật của màn hình (tính bằng điểm ảnh thật)
@@ -5612,7 +5643,7 @@ ov.addEventListener('pointermove', e => {
 function pointerEnd(e){
   if (e.pointerType === 'pen') { lastPen = performance.now(); if (e.pointerId === activeId) lastPenUp = lastPen; }
   if (e.pointerType === 'touch') {
-    const gp = gPrev; touches.delete(e.pointerId); gPrev = null;
+    const gp = gPrev; touches.delete(e.pointerId); gPrev = null; if (gp && gp.z) zoomDone(gp.cx - left, gp.cy - topPx);
     if (!touches.size) { if (gp && gp.go && !gp.z && e.type === 'pointerup' && !penRecent()) fling(); viewSnap = null; tgDead = false; }
   }
   if (e.pointerId === activeId) { if (e.type === 'pointerup') step(e); finish(); }
@@ -5640,12 +5671,12 @@ ov.addEventListener('touchmove', e => {
   if (e.touches.length !== 2) return; e.preventDefault(); if (activeId !== null || !tg || tgDead || penRecent() || fingersOf(e).length !== 2) { tg = null; return; }
   const sn = tsnap(e);
   if (tg) { cancelAnimationFrame(anim); view.tx += sn.cx - tg.cx; view.ty += sn.cy - tg.cy; panTrack(sn.cx - tg.cx, sn.cy - tg.cy);
-    sn.d0 = tg.d0 || tg.d; sn.z = tg.z || Math.abs(sn.d / sn.d0 - 1) > 0.08;   // chỉ bắt đầu phóng khi hai ngón đã chụm/giãn quá 8%: cuộn hai ngón không bị phóng lắt nhắt (và cuộn nhẹ hơn nhiều)
+    sn.d0 = tg.d0 || tg.d; sn.z = tg.z || Math.abs(sn.d / sn.d0 - 1) > 0.04;   // chỉ bắt đầu phóng khi hai ngón đã chụm/giãn quá 8%: cuộn hai ngón không bị phóng lắt nhắt (và cuộn nhẹ hơn nhiều)
     if (sn.z && tg.d > 0) zoomAt(sn.cx - left, sn.cy - topPx, sn.d / tg.d);
-    clampView(); if (!sn.z) snapPan(); updateNav(); invalidate(sn.z ? true : 'pan'); }
+    clampView(); if (!sn.z) snapPan(); updateNav(); invalidate(sn.z ? 'zoom' : 'pan'); }
   tg = sn;
 }, { passive:false });
-for (const ev of ['touchend', 'touchcancel']) ov.addEventListener(ev, e => { if (e.touches.length < 2) { if (tg) { scheduleSave(); if (!tg.z && ev === 'touchend' && !penRecent()) fling(); } tg = null; } if (!e.touches.length) tgDead = false; });
+for (const ev of ['touchend', 'touchcancel']) ov.addEventListener(ev, e => { if (e.touches.length < 2) { if (tg) { scheduleSave(); if (tg.z) zoomDone(tg.cx - left, tg.cy - topPx); else if (ev === 'touchend' && !penRecent()) fling(); } tg = null; } if (!e.touches.length) tgDead = false; });
 function gesture(e){                                 // một ngón: cuộn (khi đã dùng bút). Hai ngón: cuộn và phóng
   if (tg) return;                                    // cử chỉ hai ngón đang được xử lí bằng sự kiện cảm ứng gốc
   const t = touches.get(e.pointerId); if (!t) return;
@@ -5660,15 +5691,17 @@ function gesture(e){                                 // một ngón: cuộn (khi
   if (!gPrev.go) { if (Math.hypot(cx - gPrev.cx, cy - gPrev.cy) < 8) return; gPrev.go = true; gPrev.cx = cx; gPrev.cy = cy; return; }
   cancelAnimationFrame(anim);
   view.tx += cx - gPrev.cx; view.ty += cy - gPrev.cy; panTrack(cx - gPrev.cx, cy - gPrev.cy);
-  if (live.length > 1 && gPrev.dist > 0) { if (!gPrev.d0) gPrev.d0 = gPrev.dist; if (!gPrev.z && Math.abs(dist / gPrev.d0 - 1) > 0.08) gPrev.z = true; if (gPrev.z) zoomAt(cx - left, cy - topPx, dist / gPrev.dist); }   // như trên: quá 8% mới phóng
+  if (live.length > 1 && gPrev.dist > 0) { if (!gPrev.d0) gPrev.d0 = gPrev.dist; if (!gPrev.z && Math.abs(dist / gPrev.d0 - 1) > 0.04) gPrev.z = true; if (gPrev.z) zoomAt(cx - left, cy - topPx, dist / gPrev.dist); }   // như trên: quá 8% mới phóng
   gPrev.cx = cx; gPrev.cy = cy; gPrev.dist = dist;
-  clampView(); if (!gPrev.z) snapPan(); updateNav(); invalidate(gPrev.z ? true : 'pan');
+  clampView(); if (!gPrev.z) snapPan(); updateNav(); invalidate(gPrev.z ? 'zoom' : 'pan');
 }
+let wheelZT = 0;
 stage.addEventListener('wheel', e => {
   e.preventDefault(); if (player && player.playing) return; cancelAnimationFrame(anim);
   if (e.ctrlKey) zoomAt(e.clientX - left, e.clientY - topPx, Math.exp(-e.deltaY * 0.01));
   else { view.tx -= e.deltaX; view.ty -= e.deltaY; }
-  clampView(); if (!e.ctrlKey) snapPan(); updateNav(); invalidate(e.ctrlKey ? true : 'pan'); scheduleSave();
+  clampView(); if (!e.ctrlKey) snapPan(); updateNav(); invalidate(e.ctrlKey ? 'zoom' : 'pan'); scheduleSave();
+  if (e.ctrlKey) { clearTimeout(wheelZT); wheelZT = setTimeout(() => { zs = null; invalidate(true); }, 180); }   // lăn chuột phóng xong thì vẽ lại nét căng
 }, { passive:false });
 for (const ev of ['gesturestart', 'gesturechange', 'contextmenu', 'selectstart']) document.addEventListener(ev, e => e.preventDefault());
 
@@ -5874,7 +5907,7 @@ $('prev').onclick = () => scrollToY((curPage() - 2) * PH());
 $('next').onclick = () => scrollToY(curPage() * PH());
 $('page').onclick = openIndex;
 $('pgAdd').onclick = () => { const k = curPage(); pageOp('ins', k, true); scrollToY(k * PH()); toast(`Đã chèn trang trống: trang ${k + 1}. Bấm Hoàn tác nếu lỡ tay.`); };   // chèn nhanh: trang trống nằm ngay sau trang đang xem, bảng cuộn tới đó
-$('zoom').onclick = () => { zoomAt(cw / 2, ch / 2, 1 / view.zoom); clampView(); updateNav(); invalidate(true); };
+$('zoom').onclick = () => zoomTo(1, cw / 2, ch / 2);   // về 100%: phóng êm chứ không nhảy cóc
 $('menuBtn').onclick = () => { $('menu').hidden = !$('menu').hidden; $('books').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true; $('shapes').hidden = true; resetClear(); };
 $('menu').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
