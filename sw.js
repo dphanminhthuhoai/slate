@@ -1,6 +1,6 @@
 // "Người giữ kho" của dmath Slate: lưu sẵn app trong máy để mở được khi không có mạng.
 // Trang chính: có mạng thì luôn lấy bản mới nhất, mất mạng mới dùng bản đã lưu. Các tệp phụ (phông chữ, thư viện PDF, biểu tượng): lấy trong kho trước cho nhanh.
-const KHO = 'dmath-slate-v112';
+const KHO = 'dmath-slate-v113';
 const CAN_CO = ['./', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 const THEM = ['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(KHO).then(async c => { await c.addAll(CAN_CO); await Promise.all(THEM.map(u => c.add(u).catch(() => {}))); }).then(() => self.skipWaiting())); });

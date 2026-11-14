@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v112 -->
+<!-- dmath Slate, bản web v113 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -1602,6 +1602,12 @@ $('glayer').addEventListener('click', e => {
     const before = JSON.stringify(g.m); const seq = g.kind === 'round' ? [0, 1] : g.m.task === 'path' ? [0, 3, 1, 2] : [0, 1, 2]; g.m.net = seq[(seq.indexOf(g.m.net || 0) + 1) % seq.length] || 0; g.m.u = 0; compileGraph(g); syncGraphs();
     undoStack.push({ t:'gm', g, a:before, b:JSON.stringify(g.m) }); redoStack.length = 0; changed(); if (g.m.net) animUnfold(g);
   }
+  else if (a === 'split') {                           // Tách hai khối theo thiết diện: bật thì hai khối tự rời nhau, bấm lần nữa thì ghép lại
+    if (g.m.task !== 'section') { toast('Nút Tách dùng cho bài Thiết diện: bấm "Dựng", ở mục Bài toán chọn Thiết diện.'); return; }
+    const Rs = MODELS.solid.solve(g, MODELS.solid.build(g)); if (!Rs.pl || !Rs.poly || Rs.poly.length < 3) { toast('Mặt phẳng chưa cắt hình thành một thiết diện nên chưa tách được.'); return; }
+    const before = JSON.stringify(g.m), to = (g.m.sp || 0) > 0.5 ? 0 : 1, from = g.m.sp || 0; g.m.net = 0;
+    g.m.sp = to; undoStack.push({ t:'gm', g, a:before, b:JSON.stringify(g.m) }); redoStack.length = 0; g.m.sp = from; animSplit(g, to); changed();
+  }
   else if (a === 'build') { if (g.kind === 'oxyz') openOxyzEditor(g); else if (g.kind === 'tangent') openTangentEditor(g); else if (g.kind === 'area' || g.kind === 'revol') openFnEditor(g); else if (MODELS[g.kind].fields) openFieldEditor(g); else if (g.kind === 'round') openRoundEditor(g); else openSolidEditor(g); }
   else if (a === 'tikz') openTikz(g);
   else if (a === 'mode') { const ms = MODELS[g.kind].modes; g.m.mode = ms[(ms.indexOf(g.m.mode) + 1) % ms.length]; compileGraph(g); syncGraphs(); changed(); }
@@ -2597,7 +2603,7 @@ const aOf = v => { const k = v / CUR_A, n = niceK(k); return (n !== null ? n : f
 const aOf2 = v => { const k = v / (CUR_A * CUR_A), n = niceK(k); return (n !== null ? n : fmt(k)) + 'a²'; }, aOf3 = v => { const k = v / (CUR_A ** 3), n = niceK(k); return (n !== null ? n : fmt(k)) + 'a³'; };
 const polyArea = pts => { let n = [0, 0, 0]; for (let i = 0; i < pts.length; i++) n = V3.add(n, V3.cross(pts[i], pts[(i + 1) % pts.length])); return V3.len(n) / 2; };   // diện tích đa giác phẳng   // 4 → "a", 2 → "0,5a"
 const nameOf = (P, Q) => P + Q;
-MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5], b:[1, 8, 0.5], 'mở':[0, 100, 1] }, tools:[['rot', 'Xoay', 'Giữ và kéo để xoay hình'], ['view', 'Sách', 'Về góc nhìn như sách giáo khoa'], ['look', 'Góc', 'Nhìn góc: xoay tới góc nhìn thấy rõ góc cần tìm'], ['unfold', 'Trải', 'Trải (khai triển) hình ra mặt phẳng: bấm lần nữa để đổi kiểu, lần thứ ba để tắt'], ['build', 'Dựng', 'Thêm điểm, nối đoạn, chọn bài toán'], ['step', 'Bước ▸', 'Hiện bước tiếp theo của lời giải'], ['step0', '⟲', 'Làm lại từ đầu'], ['font', 'Aa', 'Đổi cỡ chữ lời giải'], ['tikz', 'TikZ', 'Xuất hình thành mã TikZ để dán vào LaTeX']],
+MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5], b:[1, 8, 0.5], 'mở':[0, 100, 1] }, tools:[['rot', 'Xoay', 'Giữ và kéo để xoay hình'], ['view', 'Sách', 'Về góc nhìn như sách giáo khoa'], ['look', 'Góc', 'Nhìn góc: xoay tới góc nhìn thấy rõ góc cần tìm'], ['unfold', 'Trải', 'Trải (khai triển) hình ra mặt phẳng: bấm lần nữa để đổi kiểu, lần thứ ba để tắt'], ['split', 'Tách', 'Bài thiết diện: tách hình thành hai khối theo mặt cắt; bấm lần nữa để ghép lại'], ['build', 'Dựng', 'Thêm điểm, nối đoạn, chọn bài toán'], ['step', 'Bước ▸', 'Hiện bước tiếp theo của lời giải'], ['step0', '⟲', 'Làm lại từ đầu'], ['font', 'Aa', 'Đổi cỡ chữ lời giải'], ['tikz', 'TikZ', 'Xuất hình thành mã TikZ để dán vào LaTeX']],
   init(g){ g.unit = 56; g.ox = 0.5; g.oy = 0.74; g.m = { shape:'pyr4', yaw:0.45, pitch:0.3, h:4, pts:[{ n:'M', on:['S', 'A'], k:2 / 3 }, { n:'N', on:['S', 'C'], k:0.5 }, { n:'P', on:['B', 'C'], k:0.5 }], segs:[], task:'section', args:[['M', 'N', 'P']], step:0 }; },
   compile(g){ const Sd = SOLIDS[g.m.shape], fx = Sd && Sd.fixed; if (!g.m.a) g.m.a = 4; if (fx) g.m.h = Sd.h * g.m.a / 4; g.pn = fx ? ['a'] : ['a', 'h']; g.params = { a:g.m.a, h:g.m.h }; if (Sd && Sd.b) { g.pn.push('b'); if (!g.m.b) g.m.b = Sd.b; g.params.b = g.m.b; } if (g.m.net) { g.pn.push('mở'); g.params['mở'] = g.m.u || 0; } },   // a: cạnh đáy; hình lập phương / tứ diện đều không có thanh h (h theo a); hình chữ nhật có thêm b
   handles(){ return []; }, drag(){},
@@ -2672,6 +2678,48 @@ MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5],
     if (pts.length < 3) return null;
     const cen = V3.mul(pts.reduce((s, X) => V3.add(s, X), [0, 0, 0]), 1 / pts.length), ex = V3.norm(V3.sub(pts[0], cen)), ey = V3.cross(pl.n, ex);
     return pts.sort((X, Y) => Math.atan2(V3.dot(V3.sub(X, cen), ey), V3.dot(V3.sub(X, cen), ex)) - Math.atan2(V3.dot(V3.sub(Y, cen), ey), V3.dot(V3.sub(Y, cen), ex)));
+  },
+  /* --- hai khối tách rời theo thiết diện: mỗi khối = phần hình ở một phía mặt cắt, thêm mặt cắt làm "nắp"; đẩy hai khối ra xa nhau dọc pháp tuyến mặt cắt --- */
+  drawSplit(c, g, B, W, R){
+    const P = W.P, m = g.m, pl = R.pl, ink = B.ink[0], org = B.ink[5], vd = this.viewDir(g), cut = this.cutPoly(W, pl); if (!cut) return false;
+    const sd = X => this.sd(pl, X);
+    const clip = (pts, sgn) => { const out = []; for (let i = 0; i < pts.length; i++) { const A = pts[i], Bq = pts[(i + 1) % pts.length], a = sgn * sd(A), b = sgn * sd(Bq); if (a >= -1e-9) out.push(A); if ((a > 1e-9 && b < -1e-9) || (a < -1e-9 && b > 1e-9)) out.push(V3.lerp(A, Bq, a / (a - b))); } return out; };
+    let size = 0; for (const a of W.verts) for (const b of W.verts) size = Math.max(size, V3.len(V3.sub(P[a], P[b])));
+    const gap = size * 0.45 * clamp(m.sp || 0, 0, 1);    // hai khối rời nhau tối đa gần nửa bề ngang hình
+    const pieces = [1, -1].map(sgn => {
+      const off = V3.mul(pl.n, sgn * gap / 2), faces = [];
+      for (const f of W.faces) { const q = clip(f.v.map(n => P[n]), sgn); if (q.length >= 3) faces.push({ pts:q, n:f.n }); }
+      faces.push({ pts:cut, n:V3.mul(pl.n, -sgn), cap:true });
+      const verts = W.verts.filter(n => sgn * sd(P[n]) > 1e-6), all = verts.map(n => P[n]).concat(cut), cen = V3.mul(all.reduce((a, X) => V3.add(a, X), [0, 0, 0]), 1 / all.length);
+      return { sgn, off, faces, verts, cen, depth:V3.dot(off, vd) };
+    }).filter(pc => pc.verts.length);
+    if (pieces.length < 2) return false;
+    // co giãn riêng cho vừa khung (hai khối rời nhau chiếm chỗ rộng hơn hình gốc)
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (const pc of pieces) for (const f of pc.faces) for (const X of f.pts) { const [x, z] = this.raw(g, V3.add(X, pc.off)); x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    const top = g.y + 210, aw = g.w - 90, ah = g.y + g.h - 34 - top, k = Math.min(aw / Math.max(1e-6, x1 - x0), ah / Math.max(1e-6, z1 - z0), g.unit * 1.5), cx = g.x + g.w / 2, cy = top + ah / 2, mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+    const pr = X => { const [x, z] = this.raw(g, X); return [cx + (x - mx) * k, cy - (z - mz) * k]; };
+    const path = (pts, off) => { c.beginPath(); pts.forEach((X, i) => { const [x, y] = pr(V3.add(X, off)); if (i) c.lineTo(x, y); else c.moveTo(x, y); }); c.closePath(); };
+    const capFill = board === 'white' ? 'rgba(60,130,230,.30)' : 'rgba(110,170,255,.34)', faceFill = board === 'white' ? 'rgba(40,90,170,.06)' : 'rgba(255,255,255,.07)';
+    pieces.sort((a, b) => a.depth - b.depth);          // khối ở xa người nhìn vẽ trước, khối gần vẽ đè lên
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    for (const pc of pieces) {
+      const vis = f => V3.dot(f.n, vd) > 1e-6;
+      const ekey = (A, Bq) => [A, Bq].map(X => X.map(v => Math.round(v * 1e4)).join(',')).sort().join('|'), seen = new Set(), hidE = [];
+      for (const f of pc.faces) if (vis(f)) f.pts.forEach((A, i) => seen.add(ekey(A, f.pts[(i + 1) % f.pts.length])));
+      for (const f of pc.faces) if (!vis(f)) f.pts.forEach((A, i) => { const Bq = f.pts[(i + 1) % f.pts.length], k = ekey(A, Bq); if (!seen.has(k)) { seen.add(k); hidE.push([A, Bq]); } });   // cạnh khuất: chỉ thuộc các mặt quay lưng lại người nhìn
+      for (const f of pc.faces) if (!vis(f) && f.cap) { path(f.pts, pc.off); c.fillStyle = capFill.replace(/[\d.]+\)$/, '.16)'); c.fill(); }   // mặt cắt nằm ở phía khuất: vẫn tô nhạt cho dễ nhận
+      for (const f of pc.faces) if (vis(f)) { path(f.pts, pc.off); c.globalAlpha = 0.62; c.fillStyle = BOARDS[board].bg; c.fill(); c.globalAlpha = 1; c.fillStyle = f.cap ? capFill : faceFill; c.fill(); }   // mặt thấy: phủ nền (che bớt khối phía sau) rồi tô nhạt; mặt cắt tô xanh
+      c.strokeStyle = ink; c.lineWidth = 1.6; c.setLineDash([7, 6]);
+      for (const [A, Bq] of hidE) { const [ax, ay] = pr(V3.add(A, pc.off)), [bx, by] = pr(V3.add(Bq, pc.off)); c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke(); }   // cạnh khuất: nét đứt, mỗi cạnh vẽ một lần
+      c.setLineDash([]);
+      for (const f of pc.faces) if (vis(f)) { path(f.pts, pc.off); c.strokeStyle = ink; c.lineWidth = 2.2; c.stroke(); }
+      const [ox, oy] = pr(V3.add(pc.cen, pc.off));
+      const lab = (X, n, col) => { const [x, y] = pr(V3.add(X, pc.off)), dx = x - ox, dy = y - oy, l = Math.hypot(dx, dy) || 1; c.beginPath(); c.arc(x, y, 3.2, 0, 7); c.fillStyle = col; c.fill(); c.font = '600 17px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(n, x + dx / l * 17, y + dy / l * 17); };
+      for (const n of pc.verts) lab(P[n], n, ink);
+      for (const n of R.poly) if (P[n] && !pc.verts.includes(n)) lab(P[n], n, org);   // các đỉnh của thiết diện: ghi trên cả hai khối
+    }
+    return true;
   },
   /* --- thiết diện theo cách sách: lần lượt tìm giao tuyến với từng mặt --- */
   section(W, pl, given){
@@ -3643,6 +3691,7 @@ MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5],
     const R = this.solve(g, W), shown = this.stepsShown(g, R), nS = hid ? 0 : shown.n, askQ = hid ? null : shown.q, lines = [[org, W.Sd.name + (W.Sd.free ? '' : `  (a = ${fmt(m.a)}, h = ${fmt(m.h)}${W.Sd.b ? ', b = ' + fmt(m.b) : ''})`)]];
     { const FS = m.fs || 15; c.font = `500 ${FS}px ` + FONT; let nl = 1 + Math.ceil((c.measureText(lines[0][1]).width + 30) / (g.w - 250)) + (R.title ? 1 : 0) + 2; if (m.text) for (let i = 0; i < nS; i++) nl += Math.ceil((c.measureText(R.steps[i].t).width + 30) / (g.w - 40)); const pad = !hid && (R.steps.some(st => st.angle && st.val != null) || this.flatOf(W, R.steps, R.steps.length, m.task)) ? 200 : 0; this.fit(g, W, g.y + 14 + nl * Math.round(FS * 1.47), pad); }   // ước lượng số dòng chữ rồi co hình cho vừa
     if (R.title) lines.push([ink, R.title]);
+    if (m.sp > 0.001 && m.task === 'section' && !hid && R.pl && R.poly && R.poly.length > 2 && this.drawSplit(c, g, B, W, R)) { gLegend(c, g, lines, R.title ? 2 : 1); return; }   // đang tách hai khối theo thiết diện
     // mặt thấy tô nhạt để "đọc" được mặt phẳng; cạnh khuất nét đứt
     for (const f of W.faces) if (this.visibleFace(g, f)) { c.beginPath(); f.v.forEach((n, i) => { const [x, y] = pr(P[n]); if (i) c.lineTo(x, y); else c.moveTo(x, y); }); c.closePath(); c.fillStyle = board === 'white' ? 'rgba(40,90,170,.06)' : 'rgba(255,255,255,.06)'; c.fill(); }
     for (const e of W.edges) dash(P[e[0]], P[e[1]], ink, 2.2);
@@ -4990,6 +5039,12 @@ function openOxyzEditor(g){
 
 /* Xoay hình tới góc nhìn gần dọc theo cạnh của góc (mặt phẳng chứa góc gần song song màn hình → góc hiện gần đúng số đo thật) */
 let unfoldRaf = 0;
+let splitRaf = 0;
+function animSplit(g, to){                             // cho độ tách chạy êm tới 1 (rời hẳn) hoặc về 0 (ghép lại) trong khoảng 0,7 giây
+  cancelAnimationFrame(splitRaf); const t0 = performance.now(), from = g.m.sp || 0;
+  const tick = now => { if (!graphs.includes(g)) return; const u = Math.min(1, (now - t0) / 700), e = u * u * (3 - 2 * u); g.m.sp = from + (to - from) * e; invalidate('rect', [g.x - 4, g.y - 4, g.x + g.w + 4, g.y + g.h + 4]); if (u < 1) splitRaf = requestAnimationFrame(tick); else { g.m.sp = to; scheduleSave(); } };
+  splitRaf = requestAnimationFrame(tick);
+}
 function animUnfold(g){                                // cho thanh "mở" tự chạy 0 → 100 trong khoảng 1,6 giây
   cancelAnimationFrame(unfoldRaf); const t0 = performance.now(), net = g.m.net;
   const tick = now => { if (g.m.net !== net || !graphs.includes(g)) return; const u = Math.min(100, (now - t0) / 16); g.m.u = u; g.params['mở'] = u; invalidate('rect', [g.x - 4, g.y - 4, g.x + g.w + 4, g.y + g.h + 4]); if (u < 100) unfoldRaf = requestAnimationFrame(tick); else { syncGraphs(); scheduleSave(); } };
