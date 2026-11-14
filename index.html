@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v108 -->
+<!-- dmath Slate, bản web v109 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -602,7 +602,17 @@ const snapPan = () => { view.tx = Math.round(view.tx * dpr) / dpr; view.ty = Mat
 const padBB = (b, k) => [b[0] - k, b[1] - k, b[2] + k, b[3] + k];
 
 const DASHES = { dash:[2.6, 2.4], dot:[0.01, 2.2], dashdot:[3, 2.2, 0.01, 2.2], long:[5.5, 3] };   // mẫu nét theo đơn vị độ dày (đầu tròn nên 0.01 ra chấm tròn)
-function dashOf(st){ const k = DASHES[st.dash === true ? 'dash' : st.dash]; if (!k) return null; const gp = st.gap || 1, u = Math.min(st.size, 10); return k.map((v, i) => u * (i % 2 ? v * gp : v)); }   // bút dạ quang dày thì mẫu đứt không phình theo
+function dashOf(st){                                  // mẫu đứt của một nét; bút dạ quang dày thì mẫu đứt không phình theo
+  const k = DASHES[st.dash === true ? 'dash' : st.dash]; if (!k) return null;
+  const gp = st.gap || 1, u = Math.min(st.size, 10), d = k.map((v, i) => u * (i % 2 ? v * gp : v)), p = st.pts;
+  if (!p || p.length < 8 || st === cur) return d;      // nét đang viết dở: để nguyên mẫu, nhấc bút mới chia đều
+  // Chia đều: co giãn mẫu một chút để cả nét chứa trọn một số nguyên nhịp, đầu và cuối đều là vạch đủ dài, mọi khoảng hở bằng nhau.
+  const n = p.length, key = n + '|' + p[0] + '|' + p[1] + '|' + p[n - 4] + '|' + p[n - 3];
+  if (!st._dl || st._dl.key !== key) { let L = 0; for (let q = 4; q < n; q += 4) L += Math.hypot(p[q] - p[q - 4], p[q + 1] - p[q - 3]); st._dl = { key, L }; }   // độ dài nét, tính một lần rồi nhớ
+  const L = st._dl.L, P = d.reduce((a, v) => a + v, 0), closed = Math.hypot(p[n - 4] - p[0], p[n - 3] - p[1]) < 1 && n > 8, first = closed ? 0 : d[0];
+  const cnt = Math.round((L - first) / P); if (cnt < 1) return d;
+  const f = L / (cnt * P + first); return f > 0.6 && f < 1.6 ? d.map(v => v * f) : d;
+}
 function drawStroke(c, st){                          // nét đứt / chấm / gạch chấm: bật mẫu đứt rồi vẽ như thường (dash:true là nét đứt cũ của cạnh khuất)
   const d = dashOf(st); if (d) { c.setLineDash(d); drawStrokeCore(c, st); c.setLineDash([]); } else drawStrokeCore(c, st);
 }
