@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v107 -->
+<!-- dmath Slate, bản web v108 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -56,13 +56,14 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 .sw[aria-pressed="true"] i{box-shadow:0 0 0 2px var(--chrome),0 0 0 4px var(--accent)}
 .dot i{display:block;border-radius:50%;background:currentColor}
 /* Thu nhỏ nút theo bề ngang màn hình (đặt SAU các luật .btn, .sw ở trên thì mới có hiệu lực) */
-@media (max-width:1400px){#zoom{display:none}.btn{width:44px}}                                                                          /* mức phóng: chỉ hiện trên màn hình rộng (vẫn có trong menu và cử chỉ hai ngón) */
+@media (max-width:1400px){#zoom,#prev,#next{display:none}.btn{width:44px}}                                                                          /* mức phóng: chỉ hiện trên màn hình rộng (vẫn có trong menu và cử chỉ hai ngón) */
 @media (max-width:1250px){.btn{width:41px}.sw{width:33px}.sw i{width:28px;height:28px}}                                   /* iPad 11 inch nằm ngang */
 @media (max-width:1120px){.btn{width:39px;height:46px}.sw{width:31px;height:46px}.sw i{width:26px;height:26px}.bar{gap:2px}}   /* iPad 10 inch nằm ngang */
 @media (max-width:1250px){#prev,#next,.sw[data-slot="5"]{display:none}.btn{width:40px}}                                     /* bỏ hai nút lật trang và một màu để đủ chỗ cho nút chèn trang, chụp, nét đứt */
 @media (max-width:1120px){.sw[data-slot="4"]{display:none}}
-@media (max-width:1050px){.sw[data-slot="3"]{display:none}}                                                                 /* iPad 9,7 inch nằm ngang: bớt thêm một màu */
-@media (max-width:900px){.dot[data-size="1"]{display:none}}                                                                 /* iPad dựng dọc: bớt cỡ nét vừa, còn mảnh và đậm (cỡ khác: chạm lại vào bút) */                                                                 /* iPad 9,7 inch nằm ngang: bớt một màu */                                                                      /* iPad 10 inch nằm ngang: bỏ hai nút lật trang để đủ chỗ cho nút chụp màn hình (vẫn cuộn hoặc chạm chữ Trang) */
+@media (max-width:1150px){.sw[data-slot="3"]{display:none}}
+@media (max-width:1050px){.dot[data-size="1"]{display:none}}                                                                 /* iPad 9,7 inch nằm ngang: bớt thêm một màu */
+@media (max-width:900px){.dot[data-size="1"],#pgAdd{display:none}}                                                                 /* iPad dựng dọc: bớt cỡ nét vừa, còn mảnh và đậm (cỡ khác: chạm lại vào bút) */                                                                 /* iPad 9,7 inch nằm ngang: bớt một màu */                                                                      /* iPad 10 inch nằm ngang: bỏ hai nút lật trang để đủ chỗ cho nút chụp màn hình (vẫn cuộn hoặc chạm chữ Trang) */
 @media (max-width:900px){#prev,#next,#present,.sw[data-slot="4"],.sw[data-slot="5"]{display:none}.btn{width:36px}.sw{width:30px}.pill{padding-inline:3px}.bar{gap:1px;padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:max(6px,env(safe-area-inset-right,0px))}}   /* iPad dựng dọc: bớt hai màu phụ và nút lật trang (vuốt hai ngón để lật, bấm số trang để mở mục lục) */
 @media (max-width:900px){#redo,.sw[data-slot="3"]{display:none}}                                                           /* iPad dựng dọc: bớt nút làm lại và một màu để đủ chỗ cho nút chụp màn hình */
 @media (max-width:800px){.sw[data-slot="2"]{display:none}.btn{width:33px}}                                                     /* iPad 9,7 inch và mini dựng dọc */
@@ -266,6 +267,7 @@ body.player .clayer{pointer-events:none}
   <button class="btn dot" data-size="0" title="Nét mảnh" aria-label="Nét mảnh"><i style="width:8px;height:8px"></i></button>
   <button class="btn dot" data-size="1" title="Nét vừa" aria-label="Nét vừa"><i style="width:13px;height:13px"></i></button>
   <button class="btn dot" data-size="2" title="Nét đậm" aria-label="Nét đậm"><i style="width:19px;height:19px"></i></button>
+  <button class="btn" id="lineBtn" title="Nét thẳng: bật lên thì mỗi nét kéo ra là một đoạn thẳng (tự bắt ngang, dọc); bấm lần nữa về viết tay" aria-label="Nét thẳng" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 20L20 4"/><circle cx="4" cy="20" r="1.6"/><circle cx="20" cy="4" r="1.6"/></svg></button>
   <button class="btn" id="dashBtn" title="Nét liền / nét đứt (kiểu đứt khác: chạm lại vào bút)" aria-label="Nét liền hoặc nét đứt" aria-pressed="false"><svg viewBox="0 0 24 24"><path id="dashIco" d="M3 12h18"/></svg></button>
   </div>
   <div class="grow"></div>
@@ -527,6 +529,7 @@ const $ = id => document.getElementById(id);
 const stage = $('stage'), main = $('main'), ov = $('ov');
 const ctx = main.getContext('2d'), octx = ov.getContext('2d');
 let tool = 'pen', slot = 0, sizeIdx = 1, board = 'green', pattern = 'none';
+let lineMode = false;                                // nút nét thẳng đang bật: mỗi nét bút / dạ quang là một đoạn thẳng ngay từ lúc đặt bút
 let penW = 0, hlW = 0, penA = 1, hlA = 0.35, penDash = '', penGap = 1;   // penDash: '' liền | dash | dot | dashdot | long; penGap: hệ số khoảng đứt         // độ dày và độ đậm đang chọn của bút và bút dạ quang (penW = 0: dùng cỡ theo ba nút chấm)
 let strokes = [];              // mỗi nét: {tool, slot, size, line, t0, pts:[x,y,lực,thời gian,...], bb}
 let undoStack = [], redoStack = [];
@@ -947,6 +950,7 @@ function begin(e){
     const t0 = (w.x - hit.px) * hit.ux + (w.y - hit.py) * hit.uy, sx = r1(hit.px + hit.ux * t0), sy = r1(hit.py + hit.uy * t0);
     cur.snap = { ...hit, t0 }; cur.line = true; cur.pts = [sx, sy, 0.5, 0, sx, sy, 0.5, 0];
   } else if (hit && hit.kind === 'ray') { cur.snap = hit; cur.line = true; cur.pts = [r1(hit.t.x), r1(hit.t.y), 0.5, 0, r1(hit.t.x), r1(hit.t.y), 0.5, 0]; }
+  else if (lineMode && (tool === 'pen' || tool === 'hl')) { cur.line = true; cur.pts = [r1(w.x), r1(w.y), 0.5, 0, r1(w.x), r1(w.y), 0.5, 0]; }   // nút nét thẳng: đoạn thẳng ngay từ điểm đặt bút
   else if (hit && hit.kind === 'arc') { const P = proArcPt(hit.t, hit.a0); cur.snap = hit; cur.flat = true; cur.pts = [P.x, P.y, 0.5, 0, P.x, P.y, 0.5, 0]; }
   lastT = e.timeStamp; hx = e.clientX; hy = e.clientY; armHold();
   invalidate(false);
@@ -1046,6 +1050,7 @@ function finish(){
   clearTimeout(holdT); let justAdded = null;
   if (mode === 'draw' && cur) {
     if (cur.tool === 'laser') { cur.end = performance.now(); lasers.push(cur); }
+    else if (lineMode && cur.line && !cur.poly && cur.pts.length === 8 && Math.hypot(cur.pts[4] - cur.pts[0], cur.pts[5] - cur.pts[1]) < 3 / S()) { /* đang bật nét thẳng mà chỉ chạm, chưa kéo: không để lại chấm */ }
     else if (cur.snap && (cur.snap.kind === 'arc' ? !cur.snap.moved : Math.hypot(cur.pts[4] - cur.pts[0], cur.pts[5] - cur.pts[1]) < 1)) { /* chạm mép dụng cụ mà chưa kéo: không để lại chấm */ }
     else {
       delete cur.snap; computeBB(cur); strokes.push(cur); undoStack.push({ t:'add', s:cur }); redoStack.length = 0; justAdded = cur;
@@ -5527,7 +5532,7 @@ for (const ev of ['gesturestart', 'gesturechange', 'contextmenu', 'selectstart']
 /* ---------- Giao diện ---------- */
 function updateNav(){ $('page').textContent = 'Trang ' + curPage(); $('zoom').textContent = Math.round(view.zoom * 100) + '%'; const zz = Math.abs(view.zoom - 1) > 0.005; $('zoom').style.display = zz ? 'grid' : ''; $('page').style.display = zz && innerWidth <= 1400 ? 'none' : ''; }   // đang phóng hoặc thu: luôn hiện nút mức phóng (chạm để về 100%), kể cả trên màn hình hẹp
 function updateUI(){
-  $('dashBtn').setAttribute('aria-pressed', !!penDash); $('dashIco').setAttribute('d', penDash ? 'M3 12h4M10 12h4M17 12h4' : 'M3 12h18');   // nút nét liền / nét đứt: hình trên nút là kiểu nét đang dùng
+  $('lineBtn').setAttribute('aria-pressed', lineMode); $('dashBtn').setAttribute('aria-pressed', !!penDash); $('dashIco').setAttribute('d', penDash ? 'M3 12h4M10 12h4M17 12h4' : 'M3 12h18');   // nút nét liền / nét đứt: hình trên nút là kiểu nét đang dùng
   document.querySelectorAll('[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === tool));
   { const mb = $('moreBtn'), inMore = document.querySelector(`#morepop [data-tool="${tool}"]`); mb.setAttribute('aria-pressed', !!inMore);   // đang dùng một công cụ trong "Thêm": nút Thêm sáng lên và mang hình công cụ đó
     const want = inMore ? inMore.querySelector('svg').outerHTML : MORE_ICON; if (mb.dataset.ic !== (inMore ? tool : '')) { mb.innerHTML = want; mb.dataset.ic = inMore ? tool : ''; } }
@@ -5698,6 +5703,7 @@ function syncPenPanel(){                              // đưa trạng thái đa
 $('ppW').addEventListener('input', e => { const v = +e.target.value; if (tool === 'hl') hlW = v; else penW = v; const arr = tool === 'hl' ? CONFIG.HL_SIZES : CONFIG.PEN_SIZES; sizeIdx = arr.reduce((bi, x, i) => Math.abs(x - v) < Math.abs(arr[bi] - v) ? i : bi, 0); syncPenPanel(); updateUI(); });
 $('ppA').addEventListener('input', e => { const v = +e.target.value / 100; if (tool === 'hl') hlA = v; else penA = v; syncPenPanel(); changed(); });
 $('ppDash').innerHTML = [['', '', 'Nét liền'], ['dash', '9 7', 'Nét đứt'], ['dot', '0.5 7', 'Nét chấm'], ['dashdot', '10 6 0.5 6', 'Gạch chấm'], ['long', '18 8', 'Đứt dài']].map(([k, da, ti]) => `<button data-dash="${k}" title="${ti}" aria-label="${ti}"><svg width="44" height="12"><line x1="2" y1="6" x2="42" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round"${da ? ` stroke-dasharray="${da}"` : ''}/></svg></button>`).join('');
+$('lineBtn').onclick = () => { lineMode = !lineMode; if (tool !== 'pen' && tool !== 'hl') setTool(drawTool); updateUI(); };
 let lastDash = 'dash';                               // kiểu đứt dùng gần nhất: nút nét đứt ở thanh chính bật lại đúng kiểu này
 $('dashBtn').onclick = () => { if (penDash) { lastDash = penDash; penDash = ''; } else penDash = lastDash; if (tool !== 'pen' && tool !== 'hl') setTool(drawTool); syncPenPanel(); updateUI(); scheduleSave(); };
 $('ppDash').addEventListener('click', e => { const b = e.target.closest('[data-dash]'); if (!b) return; penDash = b.dataset.dash; syncPenPanel(); changed(); });
