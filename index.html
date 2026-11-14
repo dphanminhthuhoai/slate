@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v106 -->
+<!-- dmath Slate, bản web v107 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -3620,6 +3620,9 @@ MODELS.solid = { w:820, h:700, plain:true, range:{ a:[1, 8, 0.5], h:[1, 8, 0.5],
     if (W.Sd.perp) { const [p, q] = W.Sd.perp; dash(P[p], P[q], B.ink[3], 3); }   // đường cao: mọi hình đều tô xanh, đậm (kể cả khi nó trùng một cạnh như SA, AA′)   // đoạn phụ vẽ sẵn: trung tuyến của đáy đi qua chân đường cao
     for (const q of m.pts) if (P[q.n]) { dot(P[q.n], org, 4.5); label(q.n, org); }
     for (const sg of m.segs) if (P[sg[0]] && P[sg[1]]) dash(P[sg[0]], P[sg[1]], org, 2.4);
+    { const have = new Set(this.drawnLines(W).map(e => [e[0], e[1]].sort().join('|'))), extraL = [];   // cạnh tam giác lấy trọng tâm, đoạn chứa điểm dựng thêm: hình chưa có (đường chéo AC, đoạn SO…) thì kẻ thêm nét mảnh
+      for (const q of m.pts) { const prs = q.cen && q.cen.length === 3 ? [[q.cen[0], q.cen[1]], [q.cen[1], q.cen[2]], [q.cen[0], q.cen[2]]] : q.on ? [q.on] : []; for (const [a, b] of prs) { const k = [a, b].sort().join('|'); if (P[a] && P[b] && a !== b && !have.has(k)) { have.add(k); extraL.push([a, b]); } } }
+      for (const [a, b] of extraL) dash(P[a], P[b], org, 1.4); }
     const marked = new Set();                          // tránh vẽ trùng kí hiệu vuông góc
     const mark = (A, Bq, Cq) => { const key = [A, Bq, Cq].map(X => X.map(v => Math.round(v * 100)).join(',')).join('|'); if (marked.has(key)) return; marked.add(key); const [ax, ay] = pr(A), [bx, by] = pr(Bq), [cx, cy] = pr(Cq), u = V3.norm([ax - bx, ay - by, 0]), v = V3.norm([cx - bx, cy - by, 0]), k = 11; c.strokeStyle = ink; c.lineWidth = 1.7; c.beginPath(); c.moveTo(bx + u[0] * k, by + u[1] * k); c.lineTo(bx + (u[0] + v[0]) * k, by + (u[1] + v[1]) * k); c.lineTo(bx + v[0] * k, by + v[1] * k); c.stroke(); };
     // kí hiệu vuông góc cho cặp đoạn XY ⊥ ZW: đỉnh góc là điểm chung, hoặc chân của đoạn này nằm trên đoạn kia
@@ -5013,11 +5016,12 @@ function openSolidEditor(g){
   const ptRow = (q, i) => {
     const kind = q.cen ? 'cen' : q.cross ? 'cross' : q.foot ? 'foot' : 'edge';
     let body;
-    if (kind === 'edge') body = `trên cạnh <select class="sedge">${edgeOpts(q.on.join(''))}</select> , <span class="sk">${q.on[0]}${q.n}/${q.on[0]}${q.on[1]} =</span> <input type="number" class="skv" value="${Math.round(q.k * 1000) / 1000}" min="0.05" max="0.95" step="0.05" aria-label="Tỉ số">`;
-    else if (kind === 'cen') body = `là trọng tâm của tam giác <select class="scen">${faceOpts(q.cen.join(','))}</select>`;
+    const others = names.filter(n => !m.pts.some(p => p.n === n)).concat(m.pts.slice(0, i).map(p => p.n).filter(n => names.includes(n)));   // điểm chọn được làm đầu mút / đỉnh: điểm của hình và các điểm thầy đã dựng Ở TRÊN dòng này (ví dụ O, M)
+    if (kind === 'edge') body = `trên đoạn <select class="so1">${opt(others, q.on[0])}</select><select class="so2">${opt(others, q.on[1])}</select> , <span class="sk">${q.on[0]}${q.n}/${q.on[0]}${q.on[1]} =</span> <input type="number" class="skv" value="${Math.round(q.k * 1000) / 1000}" min="0.05" max="0.95" step="0.05" aria-label="Tỉ số">`;
+    else if (kind === 'cen') body = `là trọng tâm của tam giác <select class="sc1">${opt(others, q.cen[0])}</select><select class="sc2">${opt(others, q.cen[1])}</select><select class="sc3">${opt(others, q.cen[2])}</select>`;
     else if (kind === 'foot') body = `là hình chiếu của <select class="sf0">${opt(names, q.foot[0])}</select> lên đường <select class="sf1">${opt(names, q.foot[1][0])}</select><select class="sf2">${opt(names, q.foot[1][1])}</select>`;
     else body = `là giao điểm của <select class="sx1">${opt(names, q.cross[0][0])}</select><select class="sx2">${opt(names, q.cross[0][1])}</select> và <select class="sx3">${opt(names, q.cross[1][0])}</select><select class="sx4">${opt(names, q.cross[1][1])}</select>`;
-    return `<div class="srow" data-i="${i}" data-kind="${kind}"><input class="sname" value="${q.n}" maxlength="3" aria-label="Tên điểm"> <select class="skind"><option value="edge"${kind === 'edge' ? ' selected' : ''}>trên cạnh</option><option value="cen"${kind === 'cen' ? ' selected' : ''}>trọng tâm</option><option value="cross"${kind === 'cross' ? ' selected' : ''}>giao hai đoạn</option><option value="foot"${kind === 'foot' ? ' selected' : ''}>hình chiếu lên đường</option></select> ${body}<button class="sdel" title="Bỏ điểm">✕</button></div>`;
+    return `<div class="srow" data-i="${i}" data-kind="${kind}"><input class="sname" value="${q.n}" maxlength="3" aria-label="Tên điểm"> <select class="skind"><option value="edge"${kind === 'edge' ? ' selected' : ''}>trên đoạn</option><option value="cen"${kind === 'cen' ? ' selected' : ''}>trọng tâm</option><option value="cross"${kind === 'cross' ? ' selected' : ''}>giao hai đoạn</option><option value="foot"${kind === 'foot' ? ' selected' : ''}>hình chiếu lên đường</option></select> ${body}<button class="sdel" title="Bỏ điểm">✕</button></div>`;
   };
   const segRow = (sg, i) => `<div class="srow" data-i="${i}">Nối <select class="sa">${opt(names, sg[0])}</select> với <select class="sb">${opt(names, sg[1])}</select><button class="sdel" title="Bỏ">✕</button></div>`;
   const argRows = () => (TASK_ARGS[m.task] || []).map((lab, i) => {
@@ -5048,10 +5052,10 @@ function openSolidEditor(g){
     if (SOLIDS[m.shape].free && !FREE_TASKS.includes($('stask').value)) $('stask').value = 'none';   // đổi sang hình bất kì khi đang chọn bài khác: về "chỉ dựng hình"
     m.pts = [...el.querySelectorAll('#spts .srow')].map(r => {
       const n = (r.querySelector('.sname').value.trim() || 'M').slice(0, 3), kind = r.querySelector('.skind').value;
-      if (kind === 'cen') { const v = (r.querySelector('.scen') || {}).value; return { n, cen:v ? v.split(',') : W.faces[0].v.slice(0, 3) }; }
+      if (kind === 'cen') { const c3 = ['.sc1', '.sc2', '.sc3'].map(k => (r.querySelector(k) || {}).value); return { n, cen:c3.every(Boolean) ? c3 : W.faces[0].v.slice(0, 3) }; }
       if (kind === 'cross') { const q = c => (r.querySelector(c) || {}).value || names[0]; return { n, cross:[[q('.sx1'), q('.sx2')], [q('.sx3'), q('.sx4')]] }; }
       if (kind === 'foot') { const q = c => (r.querySelector(c) || {}).value || names[0]; return { n, foot:[q('.sf0'), [q('.sf1'), q('.sf2')]] }; }
-      const e = (r.querySelector('.sedge') || {}).value, on = W.edges.find(x => x.join('') === e) || W.edges[0]; return { n, on, k:clamp(+((r.querySelector('.skv') || {}).value) || 0.5, 0.05, 0.95) };
+      const o1 = (r.querySelector('.so1') || {}).value, o2 = (r.querySelector('.so2') || {}).value, on = o1 && o2 && o1 !== o2 ? [o1, o2] : W.edges[0].slice(); return { n, on, k:clamp(+((r.querySelector('.skv') || {}).value) || 0.5, 0.05, 0.95) };
     });
     const seen = new Set(Object.keys(SOLIDS[m.shape].pts(1))); m.pts = m.pts.filter(q => { if (seen.has(q.n)) return false; seen.add(q.n); return true; });   // bỏ điểm trùng tên với đỉnh hoặc với nhau
     m.segs = [...el.querySelectorAll('#ssegs .srow')].map(r => [r.querySelector('.sa').value, r.querySelector('.sb').value]);
@@ -5065,7 +5069,7 @@ function openSolidEditor(g){
     else if (t.id === 'stask') { read(); m.args = []; if ((m.task === 'col' || m.task === 'conc') && !m.pts.length) MODELS.solid.sampleCol(g); openSolidEditor(g); }   // bài thẳng hàng, đồng quy: chưa có điểm nào thì đặt sẵn một hình mẫu
     else if (t.classList.contains('skind')) { const r = t.closest('.srow'), i = +r.dataset.i; read(); const n = m.pts[i] ? m.pts[i].n : 'M'; m.pts[i] = t.value === 'cen' ? { n, cen:W.faces[0].v.slice(0, 3) } : t.value === 'foot' ? { n, foot:[names[0], [names[1], names[2]]] } : t.value === 'cross' ? { n, cross:[[names[0], names[2]], [names[1], names[3 % names.length]]] } : { n, on:W.edges[0], k:0.5 }; openSolidEditor(g); }
     else if (t.classList.contains('spk')) { const r = t.closest('.srow'), i = +r.dataset.i; read(); m.args[i] = t.value === 'pts' ? [] : [t.value]; openSolidEditor(g); }
-    else if (t.classList.contains('sedge') || t.classList.contains('sname')) { const r = t.closest('.srow'), ed = r.querySelector('.sedge'), nm = r.querySelector('.sname').value || 'M'; if (ed) r.querySelector('.sk').textContent = `${ed.value[0]}${nm}/${ed.value} =`; }
+    else if (t.classList.contains('so1') || t.classList.contains('so2') || t.classList.contains('sname')) { const r = t.closest('.srow'), a = r.querySelector('.so1'), b = r.querySelector('.so2'), nm = r.querySelector('.sname').value || 'M'; if (a && b) r.querySelector('.sk').textContent = `${a.value}${nm}/${a.value}${b.value} =`; }
   };
   el.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
