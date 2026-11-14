@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v113 -->
+<!-- dmath Slate, bản web v114 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -90,7 +90,8 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 .chip i{width:14px;height:14px;border-radius:4px;background:var(--c);border:1px solid rgba(255,255,255,.25)}
 .chip[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .row{height:42px;border-radius:10px;border:0;background:var(--chrome-2);color:var(--fg);font:500 14px var(--font);cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding-inline:12px;width:100%}
-.row small{font:400 12px var(--font);color:var(--muted)}
+.row{gap:10px;white-space:nowrap;text-align:left}
+.row small{font:400 12px var(--font);color:var(--muted);flex:1;min-width:0;text-align:right;overflow:hidden;text-overflow:ellipsis}   /* chữ chú thích dài thì cắt gọn bằng dấu …, không xuống dòng làm lệch hàng */
 .row.danger{color:var(--danger)}
 .rows{display:flex;flex-direction:column;gap:8px}
 
@@ -211,6 +212,15 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 
 /* Chế độ trình chiếu: ẩn thanh công cụ, chỉ còn mặt bảng */
 body.present .bar{display:none}
+/* Cảm giác thao tác: nút lún nhẹ khi bấm, bảng chọn hiện lên êm thay vì bật ra đột ngột. Dùng thuộc tính scale / translate riêng nên không đụng tới transform đang dùng để đặt chỗ. */
+.btn,.sw,.chip,.row,.pb,.brow button,.recpill button,.gtools button,.selbar button{transition:background-color .12s ease,color .12s ease,opacity .12s ease,scale .08s ease;-webkit-tap-highlight-color:transparent}
+.btn:active,.sw:active,.chip:active,.pb:active,.recpill button:active,.gtools button:active,.selbar button:active{scale:.9}
+.row:active,.brow button:active{filter:brightness(1.3)}
+@keyframes popIn{from{opacity:0;translate:0 10px}to{opacity:1;translate:0 0}}
+@keyframes dropIn{from{opacity:0;translate:0 -8px}to{opacity:1;translate:0 0}}
+.menu,.penpanel,#morepop,#shapes{animation:popIn .16s cubic-bezier(.2,.8,.2,1)}
+.gedit,.selbar,.recpill,.toast{animation:dropIn .16s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:reduce){.menu,.penpanel,#morepop,#shapes,.gedit,.selbar,.recpill,.toast{animation:none}.btn,.sw,.chip,.pb{transition:none}}
 /* Ghi bài giảng: viên "đang ghi" ở góc trái trên, thanh xem lại ở đáy (thế chỗ thanh công cụ) */
 .recpill{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:10px;display:flex;align-items:center;gap:6px;padding:5px 5px 5px 12px;background:var(--chrome);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:3;opacity:.94}
 .recpill[hidden]{display:none}
@@ -311,7 +321,7 @@ body.player .clayer{pointer-events:none}
       <button class="chip" id="pdfStyle" title="Trên bảng tối: kiểu phấn = chữ PDF trắng như phấn; kiểu giấy = giữ nguyên trang PDF như bản in">PDF: kiểu phấn</button>
     </div><input type="file" id="pdfIn" accept="application/pdf,.pdf" hidden>
     <button class="row" id="imgOpen" style="margin-top:8px">Chèn ảnh lên bảng</button><input type="file" id="imgIn" accept="image/*" hidden>
-    <button class="row" id="cropBtn" style="margin-top:8px">Chụp một vùng <small>lưu ảnh, chép, hoặc dán sang chỗ khác</small></button></div>
+    <button class="row" id="cropBtn" style="display:none">Chụp một vùng <small>lưu ảnh, chép, hoặc dán sang chỗ khác</small></button></div>
     <div><h3>Kẻ nền</h3><div class="chips">
       <button class="chip" data-pattern="none">Trơn</button>
       <button class="chip" data-pattern="grid">Ô li</button>
@@ -582,6 +592,25 @@ function zoomAt(px, py, f){
 const PH = () => bg ? bg.ph : CONFIG.PAGE_H;        // chiều cao một trang bảng
 const curPage = () => Math.floor((-view.ty / S() + 1) / PH()) + 1;
 let anim = 0;
+// Cuộn có quán tính: nhấc tay lúc đang vuốt thì bảng trôi tiếp rồi chậm dần, như các app ghi chú quen thuộc.
+const panV = { vx:0, vy:0, t:0 };                      // vận tốc vuốt gần nhất (điểm ảnh mỗi mili giây)
+function panTrack(dx, dy){ const now = performance.now(), dt = now - panV.t; if (dt > 0 && dt < 120) { panV.vx = 0.55 * (dx / dt) + 0.45 * panV.vx; panV.vy = 0.55 * (dy / dt) + 0.45 * panV.vy; } else { panV.vx = panV.vy = 0; } panV.t = now; }
+function fling(){
+  if (performance.now() - panV.t > 90) return;         // tay đã dừng hẳn trước khi nhấc: không trôi
+  let vx = clamp(panV.vx, -4, 4), vy = clamp(panV.vy, -4, 4); panV.vx = panV.vy = 0;
+  if (Math.abs(vx) < Math.abs(vy) * 0.5) vx = 0;       // vuốt gần như dọc: chỉ trôi dọc
+  if (Math.hypot(vx, vy) < 0.25) return;
+  cancelAnimationFrame(anim); let last = performance.now();
+  const step = now => {
+    const dt = Math.min(40, now - last); last = now;
+    const tx0 = view.tx, ty0 = view.ty; view.tx += vx * dt; view.ty += vy * dt; clampView();
+    if (view.tx === tx0) vx = 0; if (view.ty === ty0) vy = 0;   // chạm mép bảng thì dừng chiều đó
+    const f = Math.exp(-dt / 320); vx *= f; vy *= f;
+    snapPan(); updateNav(); invalidate('pan');
+    if (Math.hypot(vx, vy) > 0.03) anim = requestAnimationFrame(step); else scheduleSave();
+  };
+  anim = requestAnimationFrame(step);
+}
 function scrollToY(worldY){               // cuộn mượt tới một toạ độ dọc của bảng
   cancelAnimationFrame(anim);
   const from = view.ty, to = -Math.max(0, worldY) * S(), t0 = performance.now();
@@ -5517,6 +5546,7 @@ function redo(){
 /* ---------- Bút, chuột, ngón tay ---------- */
 const touches = new Map(); let gPrev = null;
 ov.addEventListener('pointerdown', e => {
+  cancelAnimationFrame(anim);                         // chạm vào bảng là bảng đang trôi dừng ngay
   if (player) { $('pList').hidden = true; return; }    // đang xem lại bài ghi: không viết vẽ gì lên bảng
   $('recs').hidden = true; $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
   if (ed) { if (e.pointerType === 'touch' && (penRecent() || isPalm(e))) return; commitText(); return; }   // đang gõ chữ: chạm ra bảng là xong
@@ -5560,8 +5590,8 @@ ov.addEventListener('pointermove', e => {
 function pointerEnd(e){
   if (e.pointerType === 'pen') { lastPen = performance.now(); if (e.pointerId === activeId) lastPenUp = lastPen; }
   if (e.pointerType === 'touch') {
-    touches.delete(e.pointerId); gPrev = null;
-    if (!touches.size) { viewSnap = null; tgDead = false; }
+    const gp = gPrev; touches.delete(e.pointerId); gPrev = null;
+    if (!touches.size) { if (gp && gp.go && !gp.z && e.type === 'pointerup' && !penRecent()) fling(); viewSnap = null; tgDead = false; }
   }
   if (e.pointerId === activeId) { if (e.type === 'pointerup') step(e); finish(); }
   else if (e.pointerType === 'touch' && !touches.size) scheduleSave();
@@ -5587,13 +5617,13 @@ ov.addEventListener('touchstart', e => {
 ov.addEventListener('touchmove', e => {
   if (e.touches.length !== 2) return; e.preventDefault(); if (activeId !== null || !tg || tgDead || penRecent() || fingersOf(e).length !== 2) { tg = null; return; }
   const sn = tsnap(e);
-  if (tg) { cancelAnimationFrame(anim); view.tx += sn.cx - tg.cx; view.ty += sn.cy - tg.cy;
+  if (tg) { cancelAnimationFrame(anim); view.tx += sn.cx - tg.cx; view.ty += sn.cy - tg.cy; panTrack(sn.cx - tg.cx, sn.cy - tg.cy);
     sn.d0 = tg.d0 || tg.d; sn.z = tg.z || Math.abs(sn.d / sn.d0 - 1) > 0.08;   // chỉ bắt đầu phóng khi hai ngón đã chụm/giãn quá 8%: cuộn hai ngón không bị phóng lắt nhắt (và cuộn nhẹ hơn nhiều)
     if (sn.z && tg.d > 0) zoomAt(sn.cx - left, sn.cy - topPx, sn.d / tg.d);
     clampView(); if (!sn.z) snapPan(); updateNav(); invalidate(sn.z ? true : 'pan'); }
   tg = sn;
 }, { passive:false });
-for (const ev of ['touchend', 'touchcancel']) ov.addEventListener(ev, e => { if (e.touches.length < 2) { if (tg) scheduleSave(); tg = null; } if (!e.touches.length) tgDead = false; });
+for (const ev of ['touchend', 'touchcancel']) ov.addEventListener(ev, e => { if (e.touches.length < 2) { if (tg) { scheduleSave(); if (!tg.z && ev === 'touchend' && !penRecent()) fling(); } tg = null; } if (!e.touches.length) tgDead = false; });
 function gesture(e){                                 // một ngón: cuộn (khi đã dùng bút). Hai ngón: cuộn và phóng
   if (tg) return;                                    // cử chỉ hai ngón đang được xử lí bằng sự kiện cảm ứng gốc
   const t = touches.get(e.pointerId); if (!t) return;
@@ -5607,7 +5637,7 @@ function gesture(e){                                 // một ngón: cuộn (khi
   if (!gPrev || gPrev.n !== live.length) { gPrev = { cx, cy, dist, n:live.length, go:live.length > 1 }; return; }
   if (!gPrev.go) { if (Math.hypot(cx - gPrev.cx, cy - gPrev.cy) < 8) return; gPrev.go = true; gPrev.cx = cx; gPrev.cy = cy; return; }
   cancelAnimationFrame(anim);
-  view.tx += cx - gPrev.cx; view.ty += cy - gPrev.cy;
+  view.tx += cx - gPrev.cx; view.ty += cy - gPrev.cy; panTrack(cx - gPrev.cx, cy - gPrev.cy);
   if (live.length > 1 && gPrev.dist > 0) { if (!gPrev.d0) gPrev.d0 = gPrev.dist; if (!gPrev.z && Math.abs(dist / gPrev.d0 - 1) > 0.08) gPrev.z = true; if (gPrev.z) zoomAt(cx - left, cy - topPx, dist / gPrev.dist); }   // như trên: quá 8% mới phóng
   gPrev.cx = cx; gPrev.cy = cy; gPrev.dist = dist;
   clampView(); if (!gPrev.z) snapPan(); updateNav(); invalidate(gPrev.z ? true : 'pan');
