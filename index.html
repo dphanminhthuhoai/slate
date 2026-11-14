@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v114 -->
+<!-- dmath Slate, bản web v115 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -36,6 +36,9 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 .pill{display:flex;align-items:center;gap:2px;padding:3px 6px;border-radius:16px;background:var(--chrome-2)}   /* cụm giữa: công cụ viết + màu + cỡ nét */
 .morepop{position:fixed;z-index:20;display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:14px;background:var(--chrome);border:1px solid var(--line);box-shadow:0 12px 32px rgba(0,0,0,.4)}
 .morepop[hidden]{display:none}
+.linepop{flex-direction:row}
+.linepop .btn.wide{display:flex;align-items:center;flex-direction:column;width:76px;height:64px;gap:4px;justify-content:center;padding:0}
+.linepop .btn.wide span{font-size:12px}
 .btn.wide{width:auto;justify-content:start;grid-auto-flow:column;gap:10px;padding:0 14px 0 10px;font-size:15px;white-space:nowrap}
 .bar::-webkit-scrollbar{display:none}
 .bar > *{flex:none}
@@ -59,7 +62,7 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 @media (max-width:1400px){#zoom,#prev,#next{display:none}.btn{width:44px}}                                                                          /* mức phóng: chỉ hiện trên màn hình rộng (vẫn có trong menu và cử chỉ hai ngón) */
 @media (max-width:1250px){.btn{width:41px}.sw{width:33px}.sw i{width:28px;height:28px}}                                   /* iPad 11 inch nằm ngang */
 @media (max-width:1120px){.btn{width:39px;height:46px}.sw{width:31px;height:46px}.sw i{width:26px;height:26px}.bar{gap:2px}}   /* iPad 10 inch nằm ngang */
-@media (max-width:1250px){#prev,#next,.sw[data-slot="5"]{display:none}.btn{width:40px}}                                     /* bỏ hai nút lật trang và một màu để đủ chỗ cho nút chèn trang, chụp, nét đứt */
+@media (max-width:1250px){#prev,#next{display:none}.btn{width:40px}}                                     /* bỏ hai nút lật trang và một màu để đủ chỗ cho nút chèn trang, chụp, nét đứt */
 @media (max-width:1120px){.sw[data-slot="4"]{display:none}}
 @media (max-width:1150px){.sw[data-slot="3"]{display:none}}
 @media (max-width:1050px){.dot[data-size="1"]{display:none}}                                                                 /* iPad 9,7 inch nằm ngang: bớt thêm một màu */
@@ -270,6 +273,11 @@ body.player .clayer{pointer-events:none}
   <button class="btn" data-tool="lasso" title="Chọn và dời: chạm vào nét để kéo đi, hoặc khoanh quanh nhiều nét (S)" aria-label="Chọn và dời"><svg viewBox="0 0 24 24"><path d="M12 4.5c-4.4 0-8 2.4-8 5.5s3.6 5.5 8 5.5 8-2.4 8-5.5-3.6-5.5-8-5.5z" stroke-dasharray="3 2.6"/><path d="M7.5 14.8c-1.2 1.6-.8 3.6 1.3 4.9"/></svg></button>
   <button class="btn" id="shapeBtn" title="Hình có sẵn và đồ thị" aria-label="Hình có sẵn và đồ thị"><svg viewBox="0 0 24 24"><path d="M3.5 20.5l5-9 5 9z"/><circle cx="16.5" cy="7.5" r="4"/><path d="M14 14h6.5v6.5H14z"/></svg></button>
   <button class="btn" id="moreBtn" title="Công cụ khác: gõ chữ, chụp vùng, chèn khoảng trống" aria-label="Công cụ khác" aria-haspopup="true"><svg viewBox="0 0 24 24"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z"/></svg></button>
+  <div class="morepop linepop" id="linepop" hidden>
+    <button class="btn wide" data-line="solid" title="Đoạn thẳng liền"><svg viewBox="0 0 24 24"><path d="M3 19L21 5"/></svg><span>Liền</span></button>
+    <button class="btn wide" data-line="dash" title="Đoạn thẳng đứt"><svg viewBox="0 0 24 24"><path d="M3 19l4-3.1M10 13.6l4-3.1M17 8.1l4-3.1"/></svg><span>Đứt</span></button>
+    <button class="btn wide" data-line="arrow" title="Mũi tên"><svg viewBox="0 0 24 24"><path d="M3 19L20 5.8M13 5h8v8"/></svg><span>Mũi tên</span></button>
+  </div>
   <div class="morepop" id="morepop" hidden>
     <button class="btn wide" data-tool="text" title="Gõ chữ (T)" aria-label="Gõ chữ"><svg viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg><span>Gõ chữ</span></button>
     <button class="btn wide" data-tool="space" title="Chèn khoảng trống: chạm vào chỗ cần thêm chỗ rồi kéo xuống, mọi thứ bên dưới dời theo" aria-label="Chèn khoảng trống"><svg viewBox="0 0 24 24"><path d="M4 12h16" stroke-dasharray="3 2"/><path d="M12 14v6M9.5 17.5 12 20l2.5-2.5M12 10V4M9.5 6.5 12 4l2.5 2.5"/></svg><span>Chèn khoảng trống</span></button>
@@ -280,8 +288,7 @@ body.player .clayer{pointer-events:none}
   <button class="btn dot" data-size="0" title="Nét mảnh" aria-label="Nét mảnh"><i style="width:8px;height:8px"></i></button>
   <button class="btn dot" data-size="1" title="Nét vừa" aria-label="Nét vừa"><i style="width:13px;height:13px"></i></button>
   <button class="btn dot" data-size="2" title="Nét đậm" aria-label="Nét đậm"><i style="width:19px;height:19px"></i></button>
-  <button class="btn" id="lineBtn" title="Nét thẳng: bật lên thì mỗi nét kéo ra là một đoạn thẳng (tự bắt ngang, dọc); bấm lần nữa về viết tay" aria-label="Nét thẳng" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 20L20 4"/><circle cx="4" cy="20" r="1.6"/><circle cx="20" cy="4" r="1.6"/></svg></button>
-  <button class="btn" id="dashBtn" title="Nét liền / nét đứt (kiểu đứt khác: chạm lại vào bút)" aria-label="Nét liền hoặc nét đứt" aria-pressed="false"><svg viewBox="0 0 24 24"><path id="dashIco" d="M3 12h18"/></svg></button>
+  <button class="btn" id="lineBtn" title="Đường thẳng: liền, đứt hoặc mũi tên. Bấm để chọn kiểu, rồi kéo trên bảng để vẽ" aria-label="Đường thẳng" aria-pressed="false"><svg viewBox="0 0 24 24"><path id="lineIco" d="M4 20L20 4"/></svg></button>
   </div>
   <div class="grow"></div>
   <button class="btn" id="prev" title="Trang trước" aria-label="Trang trước"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
@@ -552,7 +559,7 @@ const $ = id => document.getElementById(id);
 const stage = $('stage'), main = $('main'), ov = $('ov');
 const ctx = main.getContext('2d'), octx = ov.getContext('2d');
 let tool = 'pen', slot = 0, sizeIdx = 1, board = 'green', pattern = 'none';
-let lineMode = false;                                // nút nét thẳng đang bật: mỗi nét bút / dạ quang là một đoạn thẳng ngay từ lúc đặt bút
+let lineKind = '', lastLine = 'solid';               // công cụ Đường thẳng: '' = không dùng; 'solid' liền, 'dash' đứt, 'arrow' mũi tên. lastLine: kiểu dùng gần nhất
 let penW = 0, hlW = 0, penA = 1, hlA = 0.35, penDash = '', penGap = 1;   // penDash: '' liền | dash | dot | dashdot | long; penGap: hệ số khoảng đứt         // độ dày và độ đậm đang chọn của bút và bút dạ quang (penW = 0: dùng cỡ theo ba nút chấm)
 let strokes = [];              // mỗi nét: {tool, slot, size, line, t0, pts:[x,y,lực,thời gian,...], bb}
 let undoStack = [], redoStack = [];
@@ -1006,7 +1013,10 @@ function begin(e){
     const t0 = (w.x - hit.px) * hit.ux + (w.y - hit.py) * hit.uy, sx = r1(hit.px + hit.ux * t0), sy = r1(hit.py + hit.uy * t0);
     cur.snap = { ...hit, t0 }; cur.line = true; cur.pts = [sx, sy, 0.5, 0, sx, sy, 0.5, 0];
   } else if (hit && hit.kind === 'ray') { cur.snap = hit; cur.line = true; cur.pts = [r1(hit.t.x), r1(hit.t.y), 0.5, 0, r1(hit.t.x), r1(hit.t.y), 0.5, 0]; }
-  else if (lineMode && (tool === 'pen' || tool === 'hl')) { cur.line = true; cur.pts = [r1(w.x), r1(w.y), 0.5, 0, r1(w.x), r1(w.y), 0.5, 0]; }   // nút nét thẳng: đoạn thẳng ngay từ điểm đặt bút
+  else if (lineKind && (tool === 'pen' || tool === 'hl')) {   // công cụ Đường thẳng: đoạn thẳng (hoặc mũi tên) ngay từ điểm đặt bút
+    cur.line = true; if (lineKind === 'dash') cur.dash = 'dash'; else { delete cur.dash; delete cur.gap; }
+    if (lineKind === 'arrow') { cur.poly = true; cur.pts = arrowPts(w.x, w.y, w.x, w.y, cur.size, 0); } else cur.pts = [r1(w.x), r1(w.y), 0.5, 0, r1(w.x), r1(w.y), 0.5, 0];
+  }   // nút nét thẳng: đoạn thẳng ngay từ điểm đặt bút
   else if (hit && hit.kind === 'arc') { const P = proArcPt(hit.t, hit.a0); cur.snap = hit; cur.flat = true; cur.pts = [P.x, P.y, 0.5, 0, P.x, P.y, 0.5, 0]; }
   lastT = e.timeStamp; hx = e.clientX; hy = e.clientY; armHold();
   invalidate(false);
@@ -1106,7 +1116,7 @@ function finish(){
   clearTimeout(holdT); let justAdded = null;
   if (mode === 'draw' && cur) {
     if (cur.tool === 'laser') { cur.end = performance.now(); lasers.push(cur); }
-    else if (lineMode && cur.line && !cur.poly && cur.pts.length === 8 && Math.hypot(cur.pts[4] - cur.pts[0], cur.pts[5] - cur.pts[1]) < 3 / S()) { /* đang bật nét thẳng mà chỉ chạm, chưa kéo: không để lại chấm */ }
+    else if (lineKind && cur.line && cur.pts.length >= 8 && Math.hypot(cur.pts[4] - cur.pts[0], cur.pts[5] - cur.pts[1]) < 3 / S()) { /* đang bật nét thẳng mà chỉ chạm, chưa kéo: không để lại chấm */ }
     else if (cur.snap && (cur.snap.kind === 'arc' ? !cur.snap.moved : Math.hypot(cur.pts[4] - cur.pts[0], cur.pts[5] - cur.pts[1]) < 1)) { /* chạm mép dụng cụ mà chưa kéo: không để lại chấm */ }
     else {
       delete cur.snap; computeBB(cur); strokes.push(cur); undoStack.push({ t:'add', s:cur }); redoStack.length = 0; justAdded = cur;
@@ -5548,7 +5558,7 @@ const touches = new Map(); let gPrev = null;
 ov.addEventListener('pointerdown', e => {
   cancelAnimationFrame(anim);                         // chạm vào bảng là bảng đang trôi dừng ngay
   if (player) { $('pList').hidden = true; return; }    // đang xem lại bài ghi: không viết vẽ gì lên bảng
-  $('recs').hidden = true; $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
+  $('linepop').hidden = true; $('recs').hidden = true; $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; $('morepop').hidden = true;
   if (ed) { if (e.pointerType === 'touch' && (penRecent() || isPalm(e))) return; commitText(); return; }   // đang gõ chữ: chạm ra bảng là xong
   if (e.pointerType === 'touch') {
     const penBusy = (activeId !== null && !activeIsTouch) || penRecent() || isPalm(e) || tgDead;   // đang viết, vừa viết xong, vết chạm to, hay bút đã hạ trong lúc tay còn tì: đều là tay tì
@@ -5653,8 +5663,9 @@ for (const ev of ['gesturestart', 'gesturechange', 'contextmenu', 'selectstart']
 /* ---------- Giao diện ---------- */
 function updateNav(){ $('page').textContent = 'Trang ' + curPage(); $('zoom').textContent = Math.round(view.zoom * 100) + '%'; const zz = Math.abs(view.zoom - 1) > 0.005; $('zoom').style.display = zz ? 'grid' : ''; $('page').style.display = zz && innerWidth <= 1400 ? 'none' : ''; }   // đang phóng hoặc thu: luôn hiện nút mức phóng (chạm để về 100%), kể cả trên màn hình hẹp
 function updateUI(){
-  $('lineBtn').setAttribute('aria-pressed', lineMode); $('dashBtn').setAttribute('aria-pressed', !!penDash); $('dashIco').setAttribute('d', penDash ? 'M3 12h4M10 12h4M17 12h4' : 'M3 12h18');   // nút nét liền / nét đứt: hình trên nút là kiểu nét đang dùng
-  document.querySelectorAll('[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === tool));
+  $('lineBtn').setAttribute('aria-pressed', !!lineKind); $('lineIco').setAttribute('d', { solid:'M4 20L20 4', dash:'M4 20l4-4M10 14l4-4M16 8l4-4', arrow:'M4 20L19 5M12 4.5h7.5V12' }[lineKind || lastLine]);   // nút Đường thẳng: hình trên nút là kiểu đang dùng
+  document.querySelectorAll('[data-line]').forEach(b => b.setAttribute('aria-pressed', b.dataset.line === lineKind));
+  document.querySelectorAll('[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === tool && !(lineKind && (tool === 'pen' || tool === 'hl'))));   // đang dùng Đường thẳng thì nút bút không sáng
   { const mb = $('moreBtn'), inMore = document.querySelector(`#morepop [data-tool="${tool}"]`); mb.setAttribute('aria-pressed', !!inMore);   // đang dùng một công cụ trong "Thêm": nút Thêm sáng lên và mang hình công cụ đó
     const want = inMore ? inMore.querySelector('svg').outerHTML : MORE_ICON; if (mb.dataset.ic !== (inMore ? tool : '')) { mb.innerHTML = want; mb.dataset.ic = inMore ? tool : ''; } }
   document.querySelectorAll('[data-size]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.size === (tool === 'eraser' ? eraseIdx : sizeIdx)));
@@ -5782,7 +5793,7 @@ function pickCustom(v){                               // thầy vừa chọn m�
 }
 const MORE_ICON = '<svg viewBox="0 0 24 24"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z"/></svg>';
 let drawTool = 'pen', selUsed = false;                // drawTool: bút hay dạ quang dùng gần nhất; selUsed: vùng chọn đã được dời / phóng / xoay (hoặc là hình vừa chèn)
-function setTool(t){ commitText(); tool = t; selUsed = false; if (t === 'pen' || t === 'hl') drawTool = t; crop = null; if (t !== 'lasso') setSel([]); updateUI(); invalidate(false); }
+function setTool(t){ commitText(); tool = t; lineKind = ''; selUsed = false; if (t === 'pen' || t === 'hl') drawTool = t; crop = null; if (t !== 'lasso') setSel([]); updateUI(); invalidate(false); }
 
 const names = ['Màu chính', 'Màu phụ', 'Đỏ', 'Xanh dương', 'Xanh lá', 'Cam', 'Màu tự chọn (bấm lần nữa để chọn màu khác)'];
 $('swatches').insertAdjacentHTML('afterend', '<input type="color" id="colorIn" aria-label="Chọn màu" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">');
@@ -5791,6 +5802,8 @@ $('bar').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.id === 'moreBtn') { const mp = $('morepop'); mp.hidden = !mp.hidden; if (!mp.hidden) { const r = b.getBoundingClientRect(), br = $('bar').getBoundingClientRect(); mp.style.left = Math.max(8, Math.min(window.innerWidth - mp.offsetWidth - 8, r.left + r.width / 2 - mp.offsetWidth / 2)) + 'px'; mp.style.bottom = (window.innerHeight - br.top + 8) + 'px'; $('menu').hidden = true; $('books').hidden = true; $('shapes').hidden = true; $('penpanel').hidden = true; } return; }   // nút "Thêm": bảng nhỏ nổi ngay trên nút
   if (b.dataset.tool || b.dataset.slot || b.dataset.size) $('morepop').hidden = true;
+  if (b.id !== 'lineBtn') $('linepop').hidden = true;
+  if (lineKind && (b.dataset.tool === 'pen' || b.dataset.tool === 'hl')) { setTool(b.dataset.tool); $('penpanel').hidden = true; return; }   // đang dùng Đường thẳng mà bấm bút: về viết tay, không mở bảng bút
   if (b.dataset.tool === 'eraser' && tool === 'eraser') toggleErase();        // bấm lại nút tẩy: đổi giữa tẩy cả nét và tẩy từng phần
   else if ((b.dataset.tool === 'pen' || b.dataset.tool === 'hl') && tool === b.dataset.tool && !ed) togglePenPanel();   // bấm lại nút bút đang chọn: mở bảng bút
   else if (b.dataset.tool === 'crop') { startCrop(); $('penpanel').hidden = true; }
@@ -5824,9 +5837,14 @@ function syncPenPanel(){                              // đưa trạng thái đa
 $('ppW').addEventListener('input', e => { const v = +e.target.value; if (tool === 'hl') hlW = v; else penW = v; const arr = tool === 'hl' ? CONFIG.HL_SIZES : CONFIG.PEN_SIZES; sizeIdx = arr.reduce((bi, x, i) => Math.abs(x - v) < Math.abs(arr[bi] - v) ? i : bi, 0); syncPenPanel(); updateUI(); });
 $('ppA').addEventListener('input', e => { const v = +e.target.value / 100; if (tool === 'hl') hlA = v; else penA = v; syncPenPanel(); changed(); });
 $('ppDash').innerHTML = [['', '', 'Nét liền'], ['dash', '9 7', 'Nét đứt'], ['dot', '0.5 7', 'Nét chấm'], ['dashdot', '10 6 0.5 6', 'Gạch chấm'], ['long', '18 8', 'Đứt dài']].map(([k, da, ti]) => `<button data-dash="${k}" title="${ti}" aria-label="${ti}"><svg width="44" height="12"><line x1="2" y1="6" x2="42" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round"${da ? ` stroke-dasharray="${da}"` : ''}/></svg></button>`).join('');
-$('lineBtn').onclick = () => { lineMode = !lineMode; if (tool !== 'pen' && tool !== 'hl') setTool(drawTool); updateUI(); };
+function setLine(k){ const dt = tool === 'hl' ? 'hl' : drawTool; if (tool !== 'pen' && tool !== 'hl') setTool(dt); lineKind = lastLine = k; $('penpanel').hidden = true; updateUI(); }   // chọn công cụ Đường thẳng kiểu k (vẽ bằng màu và cỡ của bút đang dùng)
+$('lineBtn').onclick = () => {                         // bấm lần đầu: cầm công cụ Đường thẳng (kiểu dùng gần nhất) và mở ba kiểu để chọn; bấm lại: đóng / mở bảng chọn
+  const lp = $('linepop'), wasOn = !!lineKind; if (!wasOn) setLine(lastLine);
+  lp.hidden = wasOn ? !lp.hidden : false; $('morepop').hidden = true;
+  if (!lp.hidden) { const r = $('lineBtn').getBoundingClientRect(), br = $('bar').getBoundingClientRect(); lp.style.left = Math.max(8, Math.min(window.innerWidth - lp.offsetWidth - 8, r.left + r.width / 2 - lp.offsetWidth / 2)) + 'px'; lp.style.top = (br.top - lp.offsetHeight - 8) + 'px'; }
+};
+$('linepop').addEventListener('click', e => { const b = e.target.closest('[data-line]'); if (!b) return; setLine(b.dataset.line); $('linepop').hidden = true; });
 let lastDash = 'dash';                               // kiểu đứt dùng gần nhất: nút nét đứt ở thanh chính bật lại đúng kiểu này
-$('dashBtn').onclick = () => { if (penDash) { lastDash = penDash; penDash = ''; } else penDash = lastDash; if (tool !== 'pen' && tool !== 'hl') setTool(drawTool); syncPenPanel(); updateUI(); scheduleSave(); };
 $('ppDash').addEventListener('click', e => { const b = e.target.closest('[data-dash]'); if (!b) return; penDash = b.dataset.dash; syncPenPanel(); changed(); });
 $('ppG').addEventListener('input', e => { penGap = +e.target.value / 100; syncPenPanel(); changed(); });
 $('ppGrid').addEventListener('click', e => {
