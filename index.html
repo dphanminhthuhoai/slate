@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v120 -->
+<!-- dmath Slate, bản web v121 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -259,6 +259,42 @@ body.viewer #pCut,body.viewer #pAddMark,body.viewer #pMarks .danger{display:none
 body.player .glayer{display:none}
 body.player .hint{display:none}
 body.player .clayer{pointer-events:none}
+
+/* ========== LỚP TRANG TRÍ (v121) ==========
+   Chỉ đổi phần nhìn, không đổi chỗ đặt nút hay cách dùng. Muốn quay về kiểu cũ: xoá cả khối này.
+   Ý chính: thanh công cụ là một "đảo" bo tròn nổi trên nền bảng; các bảng chọn là kính mờ; nút đang chọn là ô vàng gọn bên trong. */
+:root{
+  --chrome:#171b1f; --chrome-2:#272d34; --line:rgba(255,255,255,.11);
+  --glass:rgba(23,27,31,.91);                       /* nền kính mờ của bảng chọn */
+  --well:rgba(255,255,255,.065);                    /* nền chìm của nút trong bảng chọn */
+  --shadow:0 1px 0 rgba(255,255,255,.07) inset,0 14px 34px rgba(0,0,0,.36),0 2px 6px rgba(0,0,0,.28);
+}
+body{background:var(--board-bg,var(--chrome))}       /* quanh thanh công cụ là màu bảng, nên thanh trông như nổi trên bảng */
+.bar,.pbar{margin:0 max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));
+  padding:4px 8px;border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);background:var(--chrome)}
+.pbar{padding:6px 10px}
+.pill{background:var(--well);border-radius:17px;padding:2px 5px}
+.bar .btn{border:solid transparent;border-width:4px 2px;background-clip:padding-box;border-radius:15px}   /* ô nền của nút nhỏ hơn vùng bấm: nhìn gọn mà vẫn dễ bấm */
+.bar #menuBtn{border-width:0;border-radius:12px}
+.sw i{box-shadow:0 0 0 1px rgba(255,255,255,.24) inset,0 1px 2px rgba(0,0,0,.35)}
+.sep{background:var(--line)}
+/* Bảng chọn nổi: kính mờ, viền mảnh, bóng mềm */
+.menu,.penpanel,.morepop,.selbar,.recpill,.toast{background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);border:1px solid var(--line);box-shadow:var(--shadow)}
+.menu,.penpanel{border-radius:20px;padding:16px;scrollbar-width:none}
+.menu::-webkit-scrollbar{display:none}
+.morepop{border-radius:18px}
+.selbar,.recpill{border-radius:15px}
+.menu h3,.favhead,.webbar b{font:600 13px var(--font);letter-spacing:0;text-transform:none;color:var(--muted)}
+.penpanel h3{font-size:16px;color:var(--fg)}
+.chip{border:0;background:var(--well);border-radius:12px;height:42px;font-size:13.5px}
+.chip[aria-pressed="true"]{background:rgba(242,201,76,.15);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.row{background:var(--well);border-radius:12px;height:44px}
+.sgrid button,.brow > button{border-radius:12px;background:var(--well)}
+.gtools button{border-radius:11px}
+.widget{border-radius:18px;box-shadow:var(--shadow)}
+.ppgrid button{border-color:rgba(255,255,255,.14)}
+.hint strong{font-weight:600;letter-spacing:-.01em}
+@media (max-width:900px){.bar{padding-inline:4px;margin-inline:4px}}
 </style>
 
 <!-- Thanh công cụ nằm dưới đáy màn hình, gần tay cầm bút. Ba cụm:
@@ -5769,6 +5805,7 @@ for (const ev of ['gesturestart', 'gesturechange', 'contextmenu', 'selectstart']
 /* ---------- Giao diện ---------- */
 function updateNav(){ $('page').textContent = 'Trang ' + curPage(); $('zoom').textContent = Math.round(view.zoom * 100) + '%'; const zz = Math.abs(view.zoom - 1) > 0.005; $('zoom').style.display = zz ? 'grid' : ''; $('page').style.display = zz && innerWidth <= 1400 ? 'none' : ''; }   // đang phóng hoặc thu: luôn hiện nút mức phóng (chạm để về 100%), kể cả trên màn hình hẹp
 function updateUI(){
+  document.body.style.setProperty('--board-bg', BOARDS[board].bg);   // nền quanh thanh công cụ đi theo màu bảng
   $('lineBtn').setAttribute('aria-pressed', !!lineKind); $('lineIco').setAttribute('d', { solid:'M4 20L20 4', dash:'M4 20l4-4M10 14l4-4M16 8l4-4', arrow:'M4 20L19 5M12 4.5h7.5V12' }[lineKind || lastLine]);   // nút Đường thẳng: hình trên nút là kiểu đang dùng
   document.querySelectorAll('[data-line]').forEach(b => b.setAttribute('aria-pressed', b.dataset.line === lineKind));
   document.querySelectorAll('[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === tool && !(lineKind && (tool === 'pen' || tool === 'hl'))));   // đang dùng Đường thẳng thì nút bút không sáng
@@ -5927,7 +5964,7 @@ $('bar').addEventListener('click', e => {
 });
 $('undo').onclick = undo; $('redo').onclick = redo;
 /* Bảng bút */
-const PALETTE = ['#ffffff', '#ff3b30', '#2f7cf6', '#ffe135', '#8bd346', '#d9d9d9', '#ff6a3d', '#1e90ff', '#f3e26b', '#a7d96a', '#9a9a9a', '#ff8a80', '#5cb3ff', '#fff2a8', '#b5dcc2', '#5a5a5a', '#ff79c6', '#8c8cff', '#ffb340', '#7fd1c9', '#000000', '#ff2bb0', '#6a1fe0', '#ff9500', '#3fd0d4'];   // 25 màu như bảng myViewBoard
+const PALETTE = ['#ffffff', '#ff3b30', '#2f7cf6', '#ffe135', '#8bd346', '#d9d9d9', '#ff8a80', '#ff6a3d', '#ff9500', '#ffb340', '#f3e26b', '#fff2a8', '#a7d96a', '#b5dcc2', '#7fd1c9', '#3fd0d4', '#5cb3ff', '#1e90ff', '#8c8cff', '#6a1fe0', '#ff2bb0', '#ff79c6', '#9a9a9a', '#5a5a5a', '#000000'];   // 25 màu như bảng myViewBoard
 $('ppGrid').innerHTML = PALETTE.map(c => `<button data-col="${c}" style="--c:${c}" aria-label="${c}"></button>`).join('') + '<button class="plus" data-col="+" title="Màu khác">+</button>';
 function togglePenPanel(){ const pp = $('penpanel'); pp.hidden = !pp.hidden; if (!pp.hidden) { $('menu').hidden = true; $('shapes').hidden = true; syncPenPanel(); } }
 function syncPenPanel(){                              // đưa trạng thái đang chọn lên hai thanh kéo, ô màu và nét xem trước
