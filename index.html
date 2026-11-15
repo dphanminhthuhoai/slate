@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v125 -->
+<!-- dmath Slate, bản web v126 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -1199,7 +1199,9 @@ function step(e){
     if (tdrag.t && (tdrag.moved || Math.hypot(w.x - tdrag.x0, w.y - tdrag.y0) * S() > 6)) { tdrag.moved = true; tdrag.t.x = r1(tdrag.tx + w.x - tdrag.x0); tdrag.t.y = r1(Math.max(0, tdrag.ty + w.y - tdrag.y0)); dirtyMain = true; }
     return;
   }
-  if (hdrag) { const g = hdrag.g, q = W2G(g, ...inFrame(g, w.x, w.y)); MODELS[g.kind].drag(g, hdrag.key, q[0], q[1]); need = 3; return; }
+  if (hdrag) {                                       // kéo điểm của mô hình: giữ đúng độ lệch lúc vừa cầm (điểm không nhảy tới đầu bút) và chỉ vẽ lại khung mô hình (không vẽ lại cả bảng nên không giật)
+    const g = hdrag.g, q = W2G(g, ...inFrame(g, w.x + hdrag.dx, w.y + hdrag.dy)); MODELS[g.kind].drag(g, hdrag.key, q[0], q[1]);
+    invalidate('rect', [g.x - 4, g.y - 4, g.x + g.w + 4, g.y + g.h + 4]); return; }
   if (kdrag) { kitDrag(w, e); return; }
   if (cur && cur.snap) { snapStep(w, e); return; }
   if (!cur) return;
@@ -1297,6 +1299,7 @@ function finish(){
   else if ((mode === 'move' || mode === 'scale' || mode === 'rotate') && xf) endXf();
   else if (mode === 'hdl' && hdrag) { const M = MODELS[hdrag.g.kind]; if (M.tap && JSON.stringify(hdrag.g.m) === hdrag.before) M.tap(hdrag.g, hdrag.key);   /* chạm mà không kéo: mô hình tự xử lí (đổi kiểu ngoặc) */
     const b = JSON.stringify(hdrag.g.m); if (b !== hdrag.before) { undoStack.push({ t:'gm', g:hdrag.g, a:hdrag.before, b }); redoStack.length = 0; } }
+  if (hdrag) { const hg = hdrag.g; hdrag = null; invalidate('rect', [hg.x - 4, hg.y - 4, hg.x + hg.w + 4, hg.y + hg.h + 4]); }   // thả điểm: vẽ lại khung để quầng sáng tắt
   cur = null; activeId = null; mode = null; eraserPos = null; eraseBatch = []; kdrag = null; hdrag = null; readout = null;
   if (tip) { tip.down = false; tip.t = performance.now(); }
   if (justAdded) { invalidate('rect', padBB(justAdded.bb, justAdded.size + 4)); $('undo').disabled = false; $('redo').disabled = true; scheduleSave(); }   // nét thường: việc nhẹ nhất có thể
@@ -1734,7 +1737,11 @@ function drawGraph(c, g, s){
   c.globalAlpha = 1; c.lineWidth = 2.6; c.lineJoin = 'round'; c.lineCap = 'round';
   if (g.kind) {                                      // mô hình tương tác: phần nội dung do từng loại vẽ, rồi tới các điểm kéo được
     MODELS[g.kind].draw(c, g, s, B);
-    for (const [, X, Y] of MODELS[g.kind].handles(g)) { const [wx, wy] = G2W(g, X, Y); c.beginPath(); c.arc(wx, wy, 8, 0, 7); c.fillStyle = STEP_COL(); c.fill(); c.lineWidth = 2; c.strokeStyle = 'rgba(0,0,0,.55)'; c.stroke(); }
+    for (const [key, X, Y] of MODELS[g.kind].handles(g)) {   // điểm kéo được: quầng mờ quanh điểm báo "cầm được"; điểm đang cầm thì quầng rộng và đậm hơn
+      const [wx, wy] = G2W(g, X, Y), on = hdrag && hdrag.g === g && hdrag.key === key, col = STEP_COL();
+      c.save(); c.globalAlpha = on ? 0.34 : 0.16; c.beginPath(); c.arc(wx, wy, on ? 22 : 14, 0, 7); c.fillStyle = col; c.fill(); c.restore();
+      c.beginPath(); c.arc(wx, wy, on ? 9 : 7, 0, 7); c.fillStyle = col; c.fill(); c.lineWidth = 2; c.strokeStyle = board === 'white' ? '#fff' : 'rgba(0,0,0,.6)'; c.stroke();
+    }
     c.restore(); c.globalAlpha = 1; c.setLineDash([]); c.lineJoin = 'miter'; c.strokeStyle = B.label; c.lineWidth = 1.2; c.strokeRect(x, y, w, h); return;   // viền khung: đặt lại kiểu nét cho chắc, không phụ thuộc thứ vẽ trước đó
   }
   const N = Math.max(80, Math.min(900, Math.round(w * s)));
@@ -5389,8 +5396,8 @@ function inFrame(g, wx, wy){                          // giữ điểm kéo tron
   return [x, y];
 }
 function frameBox(g){ const a = W2G(g, g.x + 10, g.y + g.h - 10), b = W2G(g, g.x + g.w - 10, g.y + 10); return [a[0], a[1], b[0], b[1]]; }   // khung tính theo toạ độ toán: [x nhỏ nhất, y nhỏ nhất, x lớn nhất, y lớn nhất]
-function modelHit(w){                                  // điểm w có chạm một điểm kéo được của mô hình nào không
-  const s = S(); let best = null, bd = 24;              // trong tầm 24 điểm ảnh, lấy điểm gần đầu bút nhất
+function modelHit(w, finger){                                  // điểm w có chạm một điểm kéo được của mô hình nào không
+  const s = S(); let best = null, bd = finger ? 36 : 26;              // trong tầm 24 điểm ảnh, lấy điểm gần đầu bút nhất
   for (let i = graphs.length - 1; i >= 0 && !best; i--) { const g = graphs[i]; if (!g.kind) continue;
     for (const [key, X, Y] of MODELS[g.kind].handles(g)) { const [wx, wy] = G2W(g, X, Y), d = Math.hypot(wx - w.x, wy - w.y) * s; if (d <= bd) { bd = d; best = { g, key }; } } }
   return best;
@@ -5398,7 +5405,9 @@ function modelHit(w){                                  // điểm w có chạm m
 function beginHandle(e, h){
   activeId = e.pointerId; activeIsTouch = e.pointerType === 'touch';
   try { ov.setPointerCapture(e.pointerId); } catch (_) {}
-  mode = 'hdl'; tip = null; hdrag = h; h.before = JSON.stringify(h.g.m); invalidate(false);   // nhớ trạng thái cũ để hoàn tác được
+  const w0 = toWorld(e), hp = MODELS[h.g.kind].handles(h.g).find(q => q[0] === h.key), hw = hp ? G2W(h.g, hp[1], hp[2]) : [w0.x, w0.y];
+  h.dx = hw[0] - w0.x; h.dy = hw[1] - w0.y;           // độ lệch giữa tâm điểm và chỗ đặt bút
+  mode = 'hdl'; tip = null; hdrag = h; h.before = JSON.stringify(h.g.m); invalidate('rect', [h.g.x - 4, h.g.y - 4, h.g.x + h.g.w + 4, h.g.y + h.g.h + 4]);   // nhớ trạng thái cũ để hoàn tác được
 }
 function addModel(kind){                              // đặt một mô hình mới vào giữa phần bảng đang xem
   const M = MODELS[kind], s = S(), g = { id:gid++, kind, w:M.w, h:M.h, fns:[], params:{} };
@@ -5784,7 +5793,7 @@ ov.addEventListener('pointerdown', e => {
   if (e.pointerType === 'touch') {
     const penBusy = (activeId !== null && !activeIsTouch) || penRecent() || isPalm(e) || tgDead;   // đang viết, vừa viết xong, vết chạm to, hay bút đã hạ trong lúc tay còn tì: đều là tay tì
     if (!penBusy && !touches.size) viewSnap = { tx:view.tx, ty:view.ty, zoom:view.zoom, t:performance.now() };
-    if (!penBusy && activeId === null) { const mh = modelHit(toWorld(e)); if (mh) { beginHandle(e, mh); return; } }   // ngón tay đặt lên điểm kéo của mô hình
+    if (!penBusy && activeId === null) { const mh = modelHit(toWorld(e), true); if (mh) { beginHandle(e, mh); return; } }   // ngón tay đặt lên điểm kéo của mô hình
     if (!penBusy && activeId === null) { const h = kitHit(toWorld(e)); if (h && (h.kind === 'move' || h.kind === 'rot' || h.kind === 'ray')) { beginKit(e, h); return; } }   // ngón tay đặt lên dụng cụ: dời hoặc xoay nó (ngón tay trên thân thước đo độ cũng là dời)
     touches.set(e.pointerId, { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, ignore:penBusy }); gPrev = null;
     if (penBusy) return;
