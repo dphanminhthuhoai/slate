@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v129 -->
+<!-- dmath Slate, bản web v130 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -527,7 +527,7 @@ body.retro .pinrail span{font:italic 600 14px var(--mathf);color:rgba(243,232,21
 </div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="chalk" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.5" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
 <div class="stage" id="stage">
-  <div class="pinpane" id="pinpane" hidden><canvas id="pinCv"></canvas><div class="pinrail" id="pinRail"><span>Đề đã ghim</span><i></i><button id="pinClose" aria-label="Bỏ ghim" title="Bỏ ghim">✕</button></div></div>
+  <div class="pinpane" id="pinpane" hidden><canvas id="pinCv"></canvas><div class="pinrail" id="pinRail"><span id="pinLbl">Đề đã ghim</span><i></i><button id="pinClose" aria-label="Bỏ ghim" title="Bỏ ghim">✕</button></div></div>
   <canvas id="main"></canvas>
   <canvas id="ov"></canvas>
   <div class="hint" id="hint"><strong>Đặt bút là viết</strong><span>Hai ngón tay để cuộn và phóng to. Vẽ một đoạn, một vòng tròn hay một mũi tên rồi giữ yên bút, hình tự nắn đẹp.</span></div>
@@ -729,6 +729,7 @@ body.retro .pinrail span{font:italic 600 14px var(--mathf);color:rgba(243,232,21
     <button id="clipSave">Lưu ảnh</button>
     <button id="clipCopy">Chép</button>
     <button class="go" id="clipPaste">Dán vào đây</button>
+    <button id="clipPin" title="Giữ vùng vừa chọn ở phía trên màn hình để vừa nhìn đề vừa chép bài">Ghim làm đề</button>
     <button id="clipDrop">Bỏ</button>
   </div>
 
@@ -787,7 +788,7 @@ const stage = $('stage'), main = $('main'), ov = $('ov');
 const ctx = main.getContext('2d'), octx = ov.getContext('2d');
 let tool = 'pen', slot = 0, sizeIdx = 1, board = 'green', pattern = 'none';
 let lineKind = '', lastLine = 'solid';               // công cụ Đường thẳng: '' = không dùng; 'solid' liền, 'dash' đứt, 'arrow' mũi tên. lastLine: kiểu dùng gần nhất
-let pin = null, pinTimer = 0;   // pin: phần đề đang ghim phía trên { y: toạ độ bảng của mép trên, tx: độ lệch ngang, s: mức phóng, h: chiều cao trên màn hình }
+let pin = null, pinTimer = 0;   // pin: phần đề đang ghim phía trên { x, y: góc trên trái tính theo toạ độ bảng, ww: bề ngang vùng bảng hiện trong phần ghim, h: chiều cao trên màn hình, min: đang thu gọn }
 let penW = 0, hlW = 0, penA = 1, hlA = 0.35, penDash = '', penGap = 1;   // penDash: '' liền | dash | dot | dashdot | long; penGap: hệ số khoảng đứt         // độ dày và độ đậm đang chọn của bút và bút dạ quang (penW = 0: dùng cỡ theo ba nút chấm)
 let strokes = [];              // mỗi nét: {tool, slot, size, line, t0, pts:[x,y,lực,thời gian,...], bb}
 let undoStack = [], redoStack = [];
@@ -871,7 +872,7 @@ function invalidate(m, rect){
   else if (m) need = 3;
   if (!raf) raf = requestAnimationFrame(frame);
 }
-function frame(ts){ raf = 0; const n = need, r = dRect; need = 0; dRect = null; if (pin && (n === 3 || (n === 1 && r && r[3] > pin.y && r[1] < pin.y + pin.h / pin.s))) pinLater(); const t0 = perfOn ? performance.now() : 0; if (n === 3) renderMain(); else if (n === 4) renderZoom(); else if (n === 2) renderPan(); else if (n === 1) renderRect(r); renderOverlay(); if (perfOn) perfFrame(ts, performance.now() - t0, n); }
+function frame(ts){ raf = 0; const n = need, r = dRect; need = 0; dRect = null; if (pin && (n === 3 || (n === 1 && r && r[3] > pin.y && r[1] < pin.y + pin.h / pinS()))) pinLater(); const t0 = perfOn ? performance.now() : 0; if (n === 3) renderMain(); else if (n === 4) renderZoom(); else if (n === 2) renderPan(); else if (n === 1) renderRect(r); renderOverlay(); if (perfOn) perfFrame(ts, performance.now() - t0, n); }
 /* Đo độ mượt (bật trong bảng Cài đặt): chỉ tính lúc bút đang chạm bảng.
    Dòng 1: số khung hình mỗi giây và khung chậm nhất; dòng 2: iPad đọc vị trí bút bao nhiêu lần mỗi giây; dòng 3: thời gian app tính toán cho mỗi khung hình. */
 let perfOn = false, perfS = null;
@@ -5600,7 +5601,7 @@ async function captureRegion(r){                     // chụp vùng: nền PDF 
     g.setTransform(k, 0, 0, k, -r.x * k, -r.y * k);
     paintWorld(g, r.x, r.y, r.x + r.w, r.y + r.h, k, false);
     const blob = await new Promise(ok => c.toBlob(ok, 'image/png'));
-    clip = { blob, w:r.w, h:r.h }; $('clipbar').hidden = false; $('toast').hidden = true;
+    clip = { blob, w:r.w, h:r.h, x:r.x, y:r.y }; $('clipbar').hidden = false; $('toast').hidden = true;
   } catch (_) { toast('Chưa chụp được vùng này.'); }
   if (paper) { board = prev; bgCache.clear(); bgWant.clear(); invalidate(true); updateUI(); }   // updateUI: trả lại bảng màu của thanh công cụ theo màu bảng thật
 }
@@ -6733,7 +6734,8 @@ function recRest(){                                   // phần còn lại của
   for (const m of images) R.imgIds.add(m.id);
   if (bg) R.hadBg = true;
   return { board, pattern, bgMap:bg ? bg.map.slice() : undefined, bgPaper:bg ? !!bg.paper : undefined,
-    images:images.map(m => ({ id:m.id, x:m.x, y:m.y, w:m.w, h:m.h, inv:!!m.inv })), covers:covers.map(c => ({ id:c.id, x:c.x, y:c.y, w:c.w, h:c.h })), texts:texts.map(textCopy), graphs:gs };
+    images:images.map(m => ({ id:m.id, x:m.x, y:m.y, w:m.w, h:m.h, inv:!!m.inv })), covers:covers.map(c => ({ id:c.id, x:c.x, y:c.y, w:c.w, h:c.h })), texts:texts.map(textCopy), graphs:gs,
+    pin:pin ? { x:Math.round(pin.x), y:Math.round(pin.y), ww:Math.round(pin.ww), hf:+(pin.h / $('stage').clientHeight).toFixed(3), min:!!pin.min } : undefined };   // pin: phần đề đang ghim (hf: chiều cao tính theo phần của màn hình)
 }
 function recTick(force){                              // một lần "chụp": ghi lại những gì đã đổi
   const R = rec; if (!R || (R.paused && !force)) return;
@@ -6968,6 +6970,7 @@ function playRest(rest){                              // đổ phần "còn lạ
   const P = player, keep = strokes, v = { z:view.zoom, x:view.tx, y:view.ty };
   applyBoard({ board:rest.board, pattern:rest.pattern, strokes:[], bgMap:rest.bgMap, bgPaper:rest.bgPaper, images:rest.images, covers:rest.covers, texts:rest.texts, graphs:rest.graphs.map(i => JSON.parse(JSON.stringify(P.D.gs[i]))) });
   pendingBgMap = null; strokes = keep; view.zoom = v.z; view.tx = v.x; view.ty = v.y;
+  if (rest.pin) { pin = { x:rest.pin.x, y:rest.pin.y, ww:rest.pin.ww, h:Math.round(rest.pin.hf * $('stage').clientHeight), min:rest.pin.min }; pinShow(); } else if (pin) pinOff();   // phần đề ghim lúc ghi bài
   for (const im of images) im.pic = P.pics.get(im.id) || null;
   if (bg && Array.isArray(rest.bgMap)) { bg.map = rest.bgMap.slice(); bg.paper = !!rest.bgPaper; }
   syncGraphs(); syncCovers(); updateUI();
@@ -7009,7 +7012,7 @@ function playLive(c){                                 // vẽ các nét đang vi
     if (L.tool === 'laser') drawLaser(c, st, t < L.t1 ? 1 : clamp(1 - (t - L.t1) / CONFIG.LASER_MS, 0, 1)); else drawStroke(c, st);
   }
 }
-async function playEnter(R){
+async function playEnter(R){ if (pin) pinOff();
   if (rec) { toast('Đang ghi bài giảng: bấm Dừng trước rồi mới xem lại được.'); return; }
   if (player || !ready) return;
   commitText(); await save();                         // cất sổ đang mở trước; từ đây đến lúc đóng, app KHÔNG tự lưu (xem hàm save)
@@ -7023,7 +7026,7 @@ async function playEnter(R){
   playApply(0); playUI(); playStrip();
   toast(R.audio ? 'Bấm ▶ để xem lại. Kéo thanh thời gian hoặc chọn mục đã đánh dấu để tua.' : 'Bài ghi này không có tiếng. Bấm ▶ để xem lại nét viết.', false, 5000);
 }
-async function playExit(){
+async function playExit(){ if (pin) pinOff();
   const P = player; if (!P) return;
   cancelAnimationFrame(P.raf); if (P.audio) { P.audio.pause(); P.audio.src = ''; URL.revokeObjectURL(P.url); }
   player = null; document.body.classList.remove('player', 'viewer'); $('pbar').hidden = true; $('pList').hidden = true;
@@ -7160,40 +7163,76 @@ async function boot(){
    Phần ghim là một khung riêng đặt chồng lên mép trên của bảng, vẽ lại đúng vùng bảng lúc bấm ghim.
    - Kéo thanh ngang: đổi độ cao.   - Vuốt trong phần ghim: xem chỗ khác của đề.   - Nút ✕: bỏ ghim.
    Không lưu vào sổ; đổi sổ thì tự bỏ ghim. */
+const pinS = () => main.width / dpr / pin.ww;       // mức phóng của phần ghim: bề ngang màn hình chia cho bề ngang vùng bảng đang ghim
 function pinRender(){
   pinTimer = 0; if (!pin) return;
-  const cv = $('pinCv'), W = main.width, hp = Math.round(pin.h * dpr), s = pin.s;
-  cv.style.height = pin.h + 'px'; if (cv.width !== W || cv.height !== hp) { cv.width = W; cv.height = hp; }
+  const cv = $('pinCv'), W = main.width, hcss = pin.min ? 0 : pin.h, hp = Math.max(1, Math.round(hcss * dpr)), s = pinS();
+  cv.style.height = hcss + 'px'; $('pinLbl').textContent = pin.min ? 'Chạm thanh này để mở lại đề' : 'Đề đã ghim';
+  if (pin.min) return;
+  if (cv.width !== W || cv.height !== hp) { cv.width = W; cv.height = hp; }
   const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   g.fillStyle = BOARDS[board].bg; g.fillRect(0, 0, W, hp);
-  g.save(); g.setTransform(dpr * s, 0, 0, dpr * s, dpr * pin.tx, -pin.y * s * dpr);
-  const x0 = -pin.tx / s; paintWorld(g, x0, pin.y, x0 + W / dpr / s, pin.y + pin.h / s, s, false);
+  g.save(); g.setTransform(dpr * s, 0, 0, dpr * s, -pin.x * s * dpr, -pin.y * s * dpr);
+  paintWorld(g, pin.x, pin.y, pin.x + pin.ww, pin.y + pin.h / s, s, false);
   g.restore();
 }
 function pinLater(){ if (!pinTimer) pinTimer = setTimeout(pinRender, 50); }
-function pinOn(){
-  const H = $('stage').clientHeight, s = S();
-  pin = { y:Math.max(0, -view.ty / s), tx:view.tx, s, h:Math.round(H * 0.36) };
-  $('pinpane').hidden = false; $('pinBtn').setAttribute('aria-pressed', 'true'); pinRender();
-  toast('Đã ghim phần trên. Kéo thanh ngang để đổi độ cao, vuốt trong phần ghim để xem chỗ khác của đề.');
+function pinShow(){ $('pinpane').hidden = false; $('pinBtn').setAttribute('aria-pressed', 'true'); pinRender(); }
+function pinOn(){                                     // ghim phần đang nằm ở trên cùng màn hình
+  const H = $('stage').clientHeight, W = main.width / dpr, s = S();
+  pin = { x:-view.tx / s, y:Math.max(0, -view.ty / s), ww:W / s, h:Math.round(H * 0.36), min:false };
+  pinShow(); toast('Đã ghim phần trên. Kéo thanh ngang để đổi độ cao; trong phần ghim: vuốt để dời, chụm hai ngón để phóng.');
+}
+function pinRegion(r){                                // ghim đúng một vùng vừa quét chọn: tự phóng cho vừa bề ngang, cao tối đa 45% màn hình
+  const H = $('stage').clientHeight, W = main.width / dpr, pad = 14;
+  const ww = Math.max(r.w + 2 * pad, (r.h + 2 * pad) * W / (H * 0.45)), s = W / ww;
+  pin = { x:r.x - (ww - r.w) / 2, y:r.y - pad, ww, h:Math.round(clamp((r.h + 2 * pad) * s, 70, H * 0.6)), min:false };
+  view.ty = pin.h + 30 - (r.y + r.h + 8) * S(); clampView(); invalidate(true);   // cuộn bảng để chỗ ngay dưới đề nằm sát dưới thanh ngang: viết lời giải ngay bên dưới, không thấy đề hai lần
+  pinShow(); toast('Đã ghim vùng vừa chọn lên trên. Chạm thanh ngang để thu gọn hoặc mở lại.');
 }
 function pinOff(){ pin = null; $('pinpane').hidden = true; $('pinBtn').setAttribute('aria-pressed', 'false'); }
 $('pinBtn').addEventListener('click', () => { $('menu').hidden = true; if (pin) pinOff(); else pinOn(); });
 $('pinClose').addEventListener('click', e => { e.stopPropagation(); pinOff(); });
+$('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y, w:clip.w, h:clip.h }; clip = null; $('clipbar').hidden = true; pinRegion(r); };
 {
-  let d = null, rq = 0;                               // d: thao tác kéo đang diễn ra trong phần ghim
+  const pts = new Map(); let d = null, rq = 0;        // pts: các ngón / bút đang đặt trong phần ghim; d: thao tác đang diễn ra
   const draw = () => { if (!rq) rq = requestAnimationFrame(() => { rq = 0; pinRender(); }); };
-  const start = (e, kind) => { if (!pin || e.target.closest('button')) return; d = { id:e.pointerId, kind, y:e.clientY, h:pin.h, py:pin.y }; e.currentTarget.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); };
+  const two = () => { const [a, b] = [...pts.values()]; return { cx:(a.x + b.x) / 2, cy:(a.y + b.y) / 2, dist:Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)) }; };
+  const begin = () => {                               // chốt lại trạng thái lúc bắt đầu (hoặc lúc số ngón thay đổi)
+    if (pts.size >= 2) { const t = two(); d = { kind:'pinch', ...t, x:pin.x, y:pin.y, ww:pin.ww }; }
+    else if (pts.size === 1) { const a = [...pts.values()][0]; d = { kind:d && d.kind === 'rail' ? 'rail' : 'pan', sx:a.x, sy:a.y, x:pin.x, y:pin.y, h:pin.h, moved:d ? d.moved : false }; }
+    else d = null;
+  };
+  const down = (e, rail) => {
+    if (!pin || e.target.closest('button')) return;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault(); e.stopPropagation();
+    if (rail) { pts.clear(); pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); d = { kind:'rail', sx:e.clientX, sy:e.clientY, h:pin.h, moved:false }; return; }
+    if (d && d.kind === 'rail') return;
+    pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); begin();
+  };
   const move = e => {
-    if (!d || e.pointerId !== d.id || !pin) return;
-    if (d.kind === 'rail') pin.h = Math.round(clamp(d.h + e.clientY - d.y, 70, $('stage').clientHeight - 150));   // kéo thanh ngang: đổi độ cao
-    else pin.y = Math.max(0, d.py - (e.clientY - d.y) / pin.s);                                                     // vuốt trong phần ghim: cuộn đề
+    if (!d || !pin || !pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); const s = pinS();
+    if (d.kind === 'rail') {                          // kéo thanh ngang: đổi độ cao (đang thu gọn mà kéo thì mở ra)
+      const dy = e.clientY - d.sy; if (Math.abs(dy) > 5) d.moved = true;
+      if (d.moved) { if (pin.min) { pin.min = false; d.h = 0; } pin.h = Math.round(clamp(d.h + dy, 70, $('stage').clientHeight - 150)); }
+    } else if (d.kind === 'pan') { pin.x = d.x - (e.clientX - d.sx) / s; pin.y = Math.max(-20, d.y - (e.clientY - d.sy) / s); }   // một ngón / bút: dời đề
+    else if (pts.size >= 2) {                         // hai ngón: phóng to, thu nhỏ quanh điểm giữa hai ngón
+      const t = two(), W = main.width / dpr, s0 = W / d.ww, ww = clamp(d.ww * d.dist / t.dist, 160, CONFIG.WORLD_W * 3), s1 = W / ww;
+      const top = $('pinCv').getBoundingClientRect(), wx = d.x + (d.cx - top.left) / s0, wy = d.y + (d.cy - top.top) / s0;
+      pin.ww = ww; pin.x = wx - (t.cx - top.left) / s1; pin.y = Math.max(-20, wy - (t.cy - top.top) / s1);
+    }
     draw();
   };
-  const end = e => { if (d && e.pointerId === d.id) d = null; };
-  $('pinRail').addEventListener('pointerdown', e => start(e, 'rail'));
-  $('pinCv').addEventListener('pointerdown', e => start(e, 'pan'));
-  for (const el of [$('pinRail'), $('pinCv')]) { el.addEventListener('pointermove', move); el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); }
+  const up = e => {
+    if (!pts.has(e.pointerId)) return; pts.delete(e.pointerId);
+    if (d && d.kind === 'rail') { if (!d.moved && pin) { pin.min = !pin.min; pinRender(); } d = null; pts.clear(); return; }   // chạm thanh mà không kéo: thu gọn / mở lại
+    begin();
+  };
+  $('pinRail').addEventListener('pointerdown', e => down(e, true));
+  $('pinCv').addEventListener('pointerdown', e => down(e, false));
+  for (const el of [$('pinRail'), $('pinCv')]) { el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); }
   window.addEventListener('resize', () => { if (pin) { pin.h = Math.round(clamp(pin.h, 70, $('stage').clientHeight - 150)); pinLater(); } });
 }
 const SKIN_KEY = 'dmath-slate-skin';
