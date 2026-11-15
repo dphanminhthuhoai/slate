@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v121 -->
+<!-- dmath Slate, bản web v122 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -295,6 +295,13 @@ body{background:var(--board-bg,var(--chrome))}       /* quanh thanh công cụ l
 .ppgrid button{border-color:rgba(255,255,255,.14)}
 .hint strong{font-weight:600;letter-spacing:-.01em}
 @media (max-width:900px){.bar{padding-inline:4px;margin-inline:4px}}
+/* v122 - học từ Goodnotes và Scrble Ink: dấu "đang chọn" nhẹ nhàng (nền vàng nhạt + nét vàng) thay cho ô vàng đặc; cỡ nét vẽ bằng ba vạch mảnh - vừa - đậm thay cho ba chấm tròn.
+   Muốn ô vàng đặc như cũ: xoá dòng ".bar .btn[aria-pressed]" ngay dưới. */
+.bar .btn[aria-pressed="true"]{background-color:rgba(242,201,76,.2);color:var(--accent)}
+.bar .dot i{width:22px!important;border-radius:99px}
+.bar .dot[data-size="0"] i{height:2.5px!important}
+.bar .dot[data-size="1"] i{height:5px!important}
+.bar .dot[data-size="2"] i{height:8.5px!important}
 </style>
 
 <!-- Thanh công cụ nằm dưới đáy màn hình, gần tay cầm bút. Ba cụm:
