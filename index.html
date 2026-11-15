@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v127 -->
+<!-- dmath Slate, bản web v128 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -418,6 +418,42 @@ body.retro .phead h3{font:italic 600 21px var(--mathf);color:var(--cream)}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .pindex:not([hidden]){animation:fadeIn .16s ease}
 @media (prefers-reduced-motion:reduce){.pindex:not([hidden]){animation:none}.chip,.row,.gtools button,.pops button,.keys button,.brow > button,.sgrid button,.pt{transition:none}}
+
+/* ========== GHI BÀI GIẢNG (v128): cùng bộ quy tắc chung ========== */
+/* Ô "đang ghi": chấm đỏ có quầng, đồng hồ to rõ, nút Dừng màu đỏ đặc để không bấm nhầm */
+.recpill{border-radius:14px;padding:5px 5px 5px 14px;gap:6px}
+.recpill .dot{width:11px;height:11px;box-shadow:0 0 0 4px rgba(255,77,77,.22)}
+.recpill span{font-size:15.5px;min-width:44px}
+.recpill button{height:38px;border-radius:var(--r-ctl);font-size:14px;transition:background-color var(--t-fast),scale .1s}
+.recpill button:active,.pb:active{scale:.95}
+.recpill button.danger{background:#c63d2f;color:#fff}
+/* Thanh xem lại: nút phẳng như thanh công cụ, nút Phát tròn, thanh thời gian dày và tô phần đã phát, mốc đánh dấu rõ */
+.pbar{gap:6px}
+.pb{background:transparent;border-radius:var(--r-ctl);font-size:14.5px;transition:background-color var(--t-fast),color var(--t-fast),scale .1s}
+.pb:hover{background:rgba(255,255,255,.08)}
+.pb.go{width:46px;min-width:46px;height:46px;padding:0;border-radius:50%;font-size:17px;background:var(--accent);color:var(--on-accent);box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.pb.go:hover{background:var(--accent)}
+.pb.on{background:var(--accent);color:var(--on-accent)}
+#pTime{font:600 14.5px var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:92px;text-align:center}
+.pname{font-size:13.5px}
+.ptrack input{-webkit-appearance:none;appearance:none;background:transparent;height:44px;cursor:pointer}
+.ptrack input::-webkit-slider-runnable-track{height:7px;border-radius:4px;background:linear-gradient(to right,var(--accent) var(--pp,0%),rgba(255,255,255,.22) var(--pp,0%))}
+.ptrack input::-moz-range-track{height:7px;border-radius:4px;background:linear-gradient(to right,var(--accent) var(--pp,0%),rgba(255,255,255,.22) var(--pp,0%))}
+.ptrack input::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;margin-top:-6.5px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 2px 5px rgba(0,0,0,.4)}
+.ptrack input::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+.pstrip{top:50%;height:16px;margin-top:-8px;left:10px;right:10px}
+.pstrip i{height:16px}
+.pstrip .cut{top:4.5px;height:7px;border-radius:4px;opacity:.85}
+.pstrip .mk{width:4px;margin-left:-2px;border-radius:2px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.45)}
+body.retro .pname{font:italic 600 15px var(--mathf);color:rgba(243,232,210,.8)}
+body.retro .pb{color:var(--cream)}
+body.retro .pb:hover{background:rgba(0,0,0,.2)}
+body.retro .pb.go,body.retro .pb.on{color:var(--on-accent)}
+body.retro .pb.go:hover,body.retro .pb.on:hover{background:var(--accent)}
+/* Danh sách bài ghi và danh sách sổ: ô trắng ngà như các nút khác trên trang vở */
+body.retro .menu .brow > button{border:0;background:rgba(255,253,244,.82);box-shadow:inset 0 0 0 1px rgba(75,58,166,.22)}
+.brow > button{transition:background-color var(--t-fast),scale .1s}
+.brow > button:active{scale:.97}
 </style>
 
 <!-- Thanh công cụ nằm dưới đáy màn hình, gần tay cầm bút. Ba cụm:
@@ -7003,7 +7039,7 @@ function playPause(){
 function playUI(){
   const P = player; if (!P) return;
   $('pPlay').textContent = P.playing ? '❚❚' : '▶'; $('pPlay').setAttribute('aria-label', P.playing ? 'Tạm dừng' : 'Phát');
-  $('pTime').textContent = fmtT(P.t) + ' / ' + fmtT(P.dur); if (!P.dragging) $('pSeek').value = P.t;
+  $('pTime').textContent = fmtT(P.t) + ' / ' + fmtT(P.dur); if (!P.dragging) $('pSeek').value = P.t; $('pSeek').style.setProperty('--pp', (P.dur ? P.t / P.dur * 100 : 0) + '%');   // --pp: phần đã phát, để tô màu thanh thời gian
   $('pSpeed').textContent = (P.speed === 1 ? '1' : String(P.speed).replace('.', ',')) + '×';
   $('pCut').textContent = P.cutFrom === null ? 'Cắt' : 'Cắt đến đây'; $('pCut').classList.toggle('on', P.cutFrom !== null);
 }
