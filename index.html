@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v126 -->
+<!-- dmath Slate, bản web v127 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -371,6 +371,53 @@ body.retro .sgrid button{--fg:#f3e8d2;color:#f3e8d2;background:#24493b;box-shado
 body.retro .morepop .btn{color:var(--fg)}
 body.retro .morepop .btn[aria-pressed="true"]{background:#4b3aa6;color:#fff}
 body.retro .morepop .btn:hover{background:rgba(75,58,166,.1)}
+
+/* ========== BỘ QUY TẮC CHUNG (v127) ==========
+   Một bộ số đo dùng cho cả app, để chỗ nào cũng cùng một kiểu:
+   --h-ctl  chiều cao ô nhập / ô chọn / nút nhỏ      --r-ctl  bo góc của chúng
+   --t-fast thời gian chuyển màu khi bấm             Muốn đổi cả app thì đổi ở đây. */
+:root{--h-ctl:40px;--r-ctl:10px;--t-fast:.14s}
+body.retro{--r-ctl:8px}
+/* 1. Ô nhập, ô chọn, nút nhỏ: cùng cao, cùng bo, cùng cỡ chữ */
+.srow select,.srow input,.keys button,.gf input,.srow .sdel{height:var(--h-ctl);border-radius:var(--r-ctl);font:500 15px var(--font)}
+.srow .sdel{width:var(--h-ctl);font-size:17px}
+.brow > button,.pops button{border-radius:var(--r-ctl)}
+.pops button{height:38px;font-size:13px}
+/* 2. Menu chính: màn hình rộng thì xếp thành cột, thấy hết một lượt, không phải cuộn */
+@media (min-width:1000px){
+  #menu:not([hidden]){display:block;width:min(850px,calc(100% - 24px));column-count:3;column-gap:16px}
+  #menu > *{break-inside:avoid;margin:0 0 14px}
+}
+@media (min-width:700px) and (max-width:999px) and (min-height:900px){
+  #menu:not([hidden]){display:block;width:min(580px,calc(100% - 24px));column-count:2;column-gap:16px}
+  #menu > *{break-inside:avoid;margin:0 0 14px}
+}
+/* 3. Hàng nút trên mô hình: gom thành một thanh liền, nút phẳng, chữ nhỏ gọn */
+.gtools{gap:1px;padding:3px;border-radius:12px;background:var(--chrome);border:1px solid var(--line);box-shadow:0 6px 16px rgba(0,0,0,.28)}
+.gtools button{height:36px;min-width:36px;border:0;border-radius:9px;background:transparent;font:500 14px var(--font);padding-inline:10px}
+.gtools button:hover{background:var(--chrome-2)}
+.gtools button[aria-pressed="true"]{background:rgba(242,201,76,.2);color:var(--accent)}
+.gsl{top:60px;background:var(--chrome);border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.28);padding:10px 14px}
+.gsl label{font:600 15px var(--font)}
+/* 4. Bảng Dựng: rộng hơn, mỗi điểm / mỗi đoạn là một thẻ, không còn rớt dòng lộn xộn */
+#sedit{width:min(650px,calc(100% - 24px))}
+#sedit .srow{gap:6px;padding:6px 8px;border-radius:var(--r-ctl);background:var(--well)}
+#sedit .srow select{padding-inline:8px 2px}
+#spts .srow select{max-width:128px}
+#spts .srow input.sname{width:46px}#spts .srow input.skv{width:66px}
+#sedit .chip{flex:none;min-height:var(--h-ctl);width:100%}
+body.retro #sedit .srow{background:rgba(255,253,244,.72);box-shadow:inset 0 0 0 1px rgba(75,58,166,.16)}
+/* 5. Mục lục trang: ô trang to hơn, có bóng; kiểu Hoài niệm thì nền gỗ tối, tiêu đề chữ sách */
+.pgrid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+.pt canvas{box-shadow:0 5px 14px rgba(0,0,0,.35)}
+body.retro .pindex{background:rgba(38,28,21,.97)}
+body.retro .phead h3{font:italic 600 21px var(--mathf);color:var(--cream)}
+/* 6. Chuyển động: nút đổi màu êm và lún nhẹ khi bấm; mục lục trang hiện dần */
+.chip,.row,.gtools button,.pops button,.keys button,.brow > button,.sgrid button,.pt{transition:background-color var(--t-fast),color var(--t-fast),box-shadow var(--t-fast),border-color var(--t-fast),scale .1s}
+.chip:active,.row:active,.gtools button:active,.pops button:active,.keys button:active,.sgrid button:active,.pt:active{scale:.96}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.pindex:not([hidden]){animation:fadeIn .16s ease}
+@media (prefers-reduced-motion:reduce){.pindex:not([hidden]){animation:none}.chip,.row,.gtools button,.pops button,.keys button,.brow > button,.sgrid button,.pt{transition:none}}
 </style>
 
 <!-- Thanh công cụ nằm dưới đáy màn hình, gần tay cầm bút. Ba cụm:
@@ -5415,7 +5462,7 @@ function addModel(kind){                              // đặt một mô hình 
   M.init(g); compileGraph(g); graphs.push(g); undoStack.push({ t:'gadd', g }); redoStack.length = 0;
   return g;
 }
-const useModel = k => { $('shapes').hidden = true; recentUse('M|' + k); if (k === 'ineq') openIneq(null); else { addModel(k); syncGraphs(); changed(); } };
+const useModel = k => { $('shapes').hidden = true; recentUse('M|' + k); if (k === 'ineq') openIneq(null); else { addModel(k); syncGraphs(); $('hint').hidden = true; changed(); } };
 document.querySelectorAll('[data-model]').forEach(b => b.onclick = () => useModel(b.dataset.model));
 /* "Hay dùng": hàng đầu của bảng Hình và mô hình. Thứ gì thầy vừa chèn (hình mẫu, bảng biến thiên, hệ trục, mô hình) tự nhảy lên đầu hàng này, lần sau mở bảng là thấy ngay, khỏi kéo tìm. */
 const RECENT_KEY = 'dmath-slate-recent', RECENT_N = 6;
