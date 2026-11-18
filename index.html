@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v131 -->
+<!-- dmath Slate, bản web v132 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -510,7 +510,7 @@ body.retro .pinrail span{font:italic 600 14px var(--mathf);color:rgba(243,232,21
   <button class="btn" id="pgAdd" title="Chèn nhanh một trang trống ngay sau trang đang xem" aria-label="Chèn trang trống"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M12.5 10v7M9 13.5h7"/></svg></button>
   <button class="btn" id="next" title="Trang sau" aria-label="Trang sau"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
   <button class="btn txt" id="zoom" title="Chạm để về 100%" aria-label="Mức phóng">100%</button>
-  <button class="btn" id="shot" data-tool="crop" title="Chụp một vùng: kéo khung quanh phần cần chụp rồi lưu ảnh, chép hoặc dán" aria-label="Chụp một vùng"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+  <button class="btn" id="pinQuick" title="Ghim đề: giữ phần trên màn hình đứng yên để vừa nhìn đề vừa chép. Bấm lần nữa để bỏ ghim" aria-label="Ghim đề" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 14v7"/></svg></button><button class="btn" id="shot" data-tool="crop" title="Chụp một vùng: kéo khung quanh phần cần chụp rồi lưu ảnh, chép hoặc dán" aria-label="Chụp một vùng"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
   <button class="btn" id="present" title="Trình chiếu: ẩn thanh công cụ" aria-label="Trình chiếu"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
   <button class="btn" id="menuBtn" title="Tuỳ chọn bảng" aria-label="Tuỳ chọn bảng"><svg viewBox="0 0 24 24" style="stroke-width:3"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg></button>
 </div>
@@ -7189,7 +7189,7 @@ function pinPages(){                                  // số thứ tự các tr
   return out;
 }
 function pinLater(){ if (!pinTimer) pinTimer = setTimeout(pinRender, 50); }
-function pinShow(){ $('pinpane').hidden = false; $('pinBtn').setAttribute('aria-pressed', 'true'); pinRender(); }
+function pinShow(){ $('pinpane').hidden = false; $('pinBtn').setAttribute('aria-pressed', 'true'); $('pinQuick').setAttribute('aria-pressed', 'true'); pinRender(); }
 function pinOn(){                                     // ghim phần đang nằm ở trên cùng màn hình
   const H = $('stage').clientHeight, W = main.width / dpr, s = S();
   pin = { x:-view.tx / s, y:Math.max(0, -view.ty / s), ww:W / s, h:Math.round(H * 0.36), min:false };
@@ -7202,7 +7202,8 @@ function pinRegion(r){                                // ghim đúng một vùng
   view.ty = pin.h + 30 - (r.y + r.h + 8) * S(); clampView(); invalidate(true);   // cuộn bảng để chỗ ngay dưới đề nằm sát dưới thanh ngang: viết lời giải ngay bên dưới, không thấy đề hai lần
   pinShow(); toast('Đã ghim vùng vừa chọn lên trên. Chạm thanh ngang để thu gọn hoặc mở lại.');
 }
-function pinOff(){ pin = null; $('pinpane').hidden = true; $('pinBtn').setAttribute('aria-pressed', 'false'); }
+function pinOff(){ pin = null; $('pinpane').hidden = true; $('pinBtn').setAttribute('aria-pressed', 'false'); $('pinQuick').setAttribute('aria-pressed', 'false'); }
+$('pinQuick').addEventListener('click', () => { if (pin) pinOff(); else pinOn(); });   // nút Ghim đề ngay trên thanh công cụ
 $('pinBtn').addEventListener('click', () => { $('menu').hidden = true; if (pin) pinOff(); else pinOn(); });
 $('pinClose').addEventListener('click', e => { e.stopPropagation(); pinOff(); });
 $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y, w:clip.w, h:clip.h }; clip = null; $('clipbar').hidden = true; pinRegion(r); };
