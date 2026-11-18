@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v130 -->
+<!-- dmath Slate, bản web v131 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -6291,7 +6291,8 @@ async function pumpBg(){                              // dựng lần lượt t�
     if (bg === mine && e) {
       bgCache.set(i, e);
       const cur = curPage() - 1;                      // chỉ giữ vài trang gần chỗ đang xem để đỡ tốn bộ nhớ
-      for (const k of [...bgCache.keys()]) if (Math.abs(k - cur) > 2) bgCache.delete(k);
+      const pk = pinPages();                          // các trang đang hiện trong phần đề ghim: giữ lại, không dọn
+      for (const k of [...bgCache.keys()]) if (Math.abs(k - cur) > 2 && !pk.has(k)) bgCache.delete(k);
       invalidate(true);
     }
   } catch (_) {}
@@ -7175,6 +7176,17 @@ function pinRender(){
   g.save(); g.setTransform(dpr * s, 0, 0, dpr * s, -pin.x * s * dpr, -pin.y * s * dpr);
   paintWorld(g, pin.x, pin.y, pin.x + pin.ww, pin.y + pin.h / s, s, false);
   g.restore();
+  if (bg) {                                           // trang PDF của đề chưa có sẵn (bị dọn khi cuộn xa): xin dựng lại, dựng xong tự vẽ lại phần ghim
+    const want = Math.min(2400, Math.round(CONFIG.WORLD_W * s * dpr)), dark = isDark();
+    for (const i of pinPages()) { if (bg.map[i] < 0) continue; const e = bgCache.get(i); if (!e || e.dark !== dark || e.w < want * 0.7) bgWant.set(i, want); }
+    pumpBg();
+  }
+}
+function pinPages(){                                  // số thứ tự các trang PDF đang nằm trong phần đề ghim
+  const out = new Set(); if (!pin || !bg || pin.min) return out;
+  const y1 = pin.y + pin.h / pinS();
+  for (let i = Math.max(0, Math.floor(pin.y / bg.ph)); i < bg.map.length && i * bg.ph < y1; i++) out.add(i);
+  return out;
 }
 function pinLater(){ if (!pinTimer) pinTimer = setTimeout(pinRender, 50); }
 function pinShow(){ $('pinpane').hidden = false; $('pinBtn').setAttribute('aria-pressed', 'true'); pinRender(); }
