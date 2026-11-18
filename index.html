@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v133 -->
+<!-- dmath Slate, bản web v134 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -65,7 +65,9 @@ body{background:var(--chrome);color:var(--fg);font-family:var(--font);overflow:h
 .dot i{display:block;border-radius:50%;background:currentColor}
 /* Thu nhỏ nút theo bề ngang màn hình (đặt SAU các luật .btn, .sw ở trên thì mới có hiệu lực) */
 @media (max-width:1400px){#zoom,#prev,#next{display:none}.btn{width:44px}}                                                                          /* mức phóng: chỉ hiện trên màn hình rộng (vẫn có trong menu và cử chỉ hai ngón) */
-@media (max-width:1250px){.btn{width:41px}.sw{width:33px}.sw i{width:28px;height:28px}}                                   /* iPad 11 inch nằm ngang */
+@media (max-width:1250px){.btn{width:41px}.sw{width:33px}.sw i{width:28px;height:28px}}
+@media (max-width:1250px){#redo{display:none}}   /* chừa chỗ cho nút Ghim đề: bỏ nút Làm lại (thầy chỉ cần nút Hoàn tác) */
+@media (max-width:900px){.bar .btn{width:34px}}                                   /* iPad 11 inch nằm ngang */
 @media (max-width:1120px){.btn{width:39px;height:46px}.sw{width:31px;height:46px}.sw i{width:26px;height:26px}.bar{gap:2px}}   /* iPad 10 inch nằm ngang */
 @media (max-width:1250px){#prev,#next{display:none}.btn{width:40px}}                                     /* bỏ hai nút lật trang và một màu để đủ chỗ cho nút chèn trang, chụp, nét đứt */
 @media (max-width:1120px){.sw[data-slot="4"]{display:none}}
