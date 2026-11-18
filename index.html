@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v132 -->
+<!-- dmath Slate, bản web v133 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -466,6 +466,25 @@ body.retro .menu .brow > button{border:0;background:rgba(255,253,244,.82);box-sh
 body.retro .pinrail{border:0;box-shadow:0 1px 0 rgba(0,0,0,.6) inset,0 3px 0 rgba(255,226,180,.2) inset,0 -1px 0 rgba(0,0,0,.5) inset;background:linear-gradient(180deg,#7a5a40,#5b412e 50%,#432f22)}
 body.retro .pinrail i{background:var(--cream);opacity:.55}
 body.retro .pinrail span{font:italic 600 14px var(--mathf);color:rgba(243,232,210,.8)}
+
+/* ========== TRỢ GIẢNG CHIBI (v133): bé ngồi góc bảng, đưa mắt nhìn theo đầu bút, thỉnh thoảng nói một câu cho vui ==========
+   Bật / tắt ở menu ⋯ → Giao diện → Trợ giảng. Giữ rồi kéo bé để dời chỗ. Bé không có trong ảnh chụp, tệp xuất hay bài ghi. */
+.buddy{position:absolute;right:16px;bottom:10px;width:104px;z-index:2;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;filter:drop-shadow(0 5px 8px rgba(0,0,0,.35));transition:translate .25s ease}
+.buddy svg{display:block;width:100%;height:auto;overflow:visible}
+.buddy .pupils{transition:transform .12s ease-out}
+.buddy .eyeOpen{transform-box:fill-box;transform-origin:center;transition:transform .07s}
+.buddy.blink .eyeOpen{transform:scaleY(.12)}
+.buddy .arm{transform-box:view-box;transform-origin:118px 168px;transition:transform .2s ease}
+.buddy.wave .arm{animation:bWave .5s ease-in-out 2}
+.buddy.hop{animation:bHop .42s ease}
+@keyframes bWave{0%,100%{transform:rotate(0)}50%{transform:rotate(-16deg)}}
+@keyframes bHop{0%,100%{translate:0 0}40%{translate:0 -10px}}
+.bsay{position:absolute;right:62px;bottom:100%;margin-bottom:-6px;width:max-content;max-width:210px;padding:8px 12px;border-radius:14px 14px 4px 14px;background:#fffdf4;color:#2c2550;font:600 14px/1.35 var(--font);box-shadow:0 6px 16px rgba(0,0,0,.35);pointer-events:none;animation:popIn .18s ease}
+body.retro .bsay{font:italic 600 15.5px/1.35 var(--mathf)}
+@media (max-width:900px){.buddy{width:78px}}
+#buddy2{right:124px}
+@media (max-width:900px){#buddy2{right:98px}}
+@media (prefers-reduced-motion:reduce){.buddy,.buddy .pupils,.buddy .arm{transition:none}.buddy.wave .arm,.buddy.hop{animation:none}}
 </style>
 
 <!-- Thanh công cụ nằm dưới đáy màn hình, gần tay cầm bút. Ba cụm:
@@ -527,6 +546,89 @@ body.retro .pinrail span{font:italic 600 14px var(--mathf);color:rgba(243,232,21
 </div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="chalk" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.5" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
 <div class="stage" id="stage">
+  <div class="buddy" id="buddy" hidden title="Trợ giảng: giữ rồi kéo để dời chỗ"><svg viewBox="0 0 160 200" aria-hidden="true">
+  <!-- thân: áo sơ mi đen, cổ áo, hàng cúc; tay phải cầm viên phấn -->
+  <path d="M34 200 C34 170 46 152 80 150 C114 152 126 170 126 200 Z" fill="#17191c"/>
+  <path d="M63 151 L80 168 L97 151 L90 146 L80 157 L70 146 Z" fill="#2a2e34"/>
+  <path d="M80 166 V200" stroke="#2e3238" stroke-width="1.5"/>
+  <circle cx="80" cy="176" r="1.9" fill="#454b53"/><circle cx="80" cy="188" r="1.9" fill="#454b53"/>
+  <g class="arm"><path d="M118 168 C128 162 134 152 132 142" stroke="#17191c" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <circle cx="132" cy="139" r="7.5" fill="#f2cdae"/>
+    <rect x="128" y="120" width="7" height="18" rx="2" fill="#fbf7ea" transform="rotate(14 131 129)"/></g>
+  <!-- cổ -->
+  <path d="M69 138 h22 v12 c-7 4 -15 4 -22 0z" fill="#e8bc99"/>
+  <!-- tai -->
+  <ellipse cx="25" cy="92" rx="9" ry="13" fill="#f0c7a6"/><ellipse cx="135" cy="92" rx="9" ry="13" fill="#f0c7a6"/>
+  <ellipse cx="26" cy="93" rx="4" ry="7" fill="#e0ab88"/><ellipse cx="134" cy="93" rx="4" ry="7" fill="#e0ab88"/>
+  <!-- tóc phía sau đầu (lót dưới mặt cho kín, không hở khe) -->
+  <path d="M27 92 C22 50 44 22 80 20 C116 22 138 50 133 92 C126 66 108 56 80 56 C52 56 34 66 27 92 Z" fill="#1b1d21"/>
+  <!-- mặt tròn đầy, má bầu -->
+  <path d="M28 86 C28 58 50 44 80 44 C110 44 132 58 132 86 C132 124 110 144 80 144 C50 144 28 124 28 86 Z" fill="#f6d3b5"/>
+  <!-- tóc hai bên cắt ngắn (sát, hơi xanh) -->
+  <path d="M27 92 C26 74 30 62 38 54 L40 72 C34 76 30 84 29 96 Z" fill="#2b2e33"/>
+  <path d="M133 92 C134 74 130 62 122 54 L120 72 C126 76 130 84 131 96 Z" fill="#2b2e33"/>
+  <!-- phần tóc trên: dày, dựng lên rồi vuốt lệch sang phải -->
+  <path d="M34 70 C30 44 44 20 70 12 C96 5 124 12 134 32 C140 44 136 60 128 70 C126 60 120 54 112 52 C98 50 82 54 70 52 C58 52 46 58 38 66 Z" fill="#131417"/>
+  <path d="M38 62 C40 50 48 42 58 38 C52 46 50 52 50 58 Z" fill="#131417"/>
+  <!-- đường tóc chải -->
+  <path d="M46 40 C60 22 92 14 118 22" stroke="#3a3e46" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M54 46 C72 32 100 28 124 36" stroke="#3a3e46" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M64 52 C82 42 106 40 128 50" stroke="#2c3036" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M60 22 C76 14 98 12 112 16" stroke="#4a4f58" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+  <!-- lông mày đậm, thẳng -->
+  <path d="M44 76 C52 72 62 72 69 75" stroke="#1b1b1e" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+  <path d="M91 75 C98 72 108 72 116 76" stroke="#1b1b1e" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+  <!-- mắt: con ngươi nằm trong nhóm #pupils để dời theo đầu bút; mi trên nằm trong #lids để chớp mắt -->
+  <g class="eyeOpen"><ellipse cx="57" cy="91" rx="9" ry="7.5" fill="#fff"/><ellipse cx="103" cy="91" rx="9" ry="7.5" fill="#fff"/>
+  <g class="pupils"><circle cx="57" cy="92" r="5.4" fill="#22160e"/><circle cx="103" cy="92" r="5.4" fill="#22160e"/>
+    <circle cx="59" cy="89.6" r="1.7" fill="#fff"/><circle cx="105" cy="89.6" r="1.7" fill="#fff"/></g></g>
+  <g id="lids"><path d="M47 89 C51 83.5 63 83.5 67 89" stroke="#1b1b1e" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <path d="M93 89 C97 83.5 109 83.5 113 89" stroke="#1b1b1e" stroke-width="2.6" fill="none" stroke-linecap="round"/></g>
+  <!-- má hồng, mũi, miệng -->
+  <ellipse cx="43" cy="110" rx="8.5" ry="5" fill="#f2a097" opacity=".42"/><ellipse cx="117" cy="110" rx="8.5" ry="5" fill="#f2a097" opacity=".42"/>
+  <path d="M75 106 C77 110 83 110 85 106" stroke="#d8977a" stroke-width="2.3" fill="none" stroke-linecap="round"/>
+  <path d="M70 121 C75 125.5 85 125.5 90 121" stroke="#b56a5f" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg><div class="bsay" hidden></div></div>
+  <div class="buddy" id="buddy2" hidden title="Trợ giảng: giữ rồi kéo để dời chỗ"><svg viewBox="0 0 160 200" aria-hidden="true">
+  <!-- tóc phía sau: dài ngang vai -->
+  <path d="M24 92 C18 48 44 18 80 18 C116 18 142 48 136 92 C140 120 138 146 128 162 C118 166 108 160 104 150 L56 150 C52 160 42 166 32 162 C22 146 20 120 24 92 Z" fill="#33241d"/>
+  <!-- thân: áo len trắng cổ chữ V, vân len -->
+  <path d="M32 200 C32 170 46 152 80 150 C114 152 128 170 128 200 Z" fill="#f3eee3"/>
+  <path d="M66 151 L80 172 L94 151" fill="#f5d6bb"/>
+  <path d="M66 151 L80 172 L94 151" stroke="#e4dccb" stroke-width="3" fill="none" stroke-linejoin="round"/>
+  <path d="M44 176 v22 M54 170 v28 M106 170 v28 M116 176 v22" stroke="#e4dccb" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- dây chuyền mặt tim nhỏ -->
+  <path d="M71 153 C74 162 86 162 89 153" stroke="#c9ccd4" stroke-width="1" fill="none"/>
+  <path d="M80 163 c-2-3-6-1-4 2l4 4 4-4c2-3-2-5-4-2z" fill="#dfe3ea"/>
+  <!-- tay phải cầm viên phấn -->
+  <g class="arm"><path d="M118 170 C128 164 134 154 132 144" stroke="#f3eee3" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <circle cx="132" cy="141" r="7.5" fill="#f7dcc6"/>
+    <rect x="128" y="122" width="7" height="18" rx="2" fill="#ffd3e2" transform="rotate(14 131 131)"/></g>
+  <!-- cổ -->
+  <path d="M70 138 h20 v12 c-6 4 -14 4 -20 0z" fill="#efcdb2"/>
+  <!-- mặt: thon hơn, cằm nhọn nhẹ -->
+  <path d="M32 86 C32 58 52 44 80 44 C108 44 128 58 128 86 C128 120 106 142 80 142 C54 142 32 120 32 86 Z" fill="#fbe3d0"/>
+  <!-- tóc hai bên ôm mặt -->
+  <path d="M27 56 C22 96 28 124 40 140 C36 118 38 96 44 78 Z" fill="#33241d"/>
+  <path d="M133 56 C138 96 132 124 120 140 C124 118 122 96 116 78 Z" fill="#33241d"/>
+  <!-- mái lệch: rẽ ngôi bên trái, phủ chéo xuống bên phải trán -->
+  <path d="M30 80 C26 44 50 20 80 20 C112 20 134 42 132 80 C129 72 125 67 121 65 C123 75 122 83 118 90 C114 76 104 63 88 56 C80 54 72 54 66 56 C56 60 44 68 30 80 Z" fill="#3b2a21"/>
+  <path d="M60 58 C54 54 48 52 44 52 C40 60 36 70 32 78 C40 70 50 62 60 58 Z" fill="#3b2a21"/>
+  <path d="M64 28 C82 24 104 30 118 44 M76 38 C94 42 108 54 116 74 M88 48 C100 56 108 68 112 82" stroke="#5a4236" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- lông mày mảnh -->
+  <path d="M46 76 C52 72 60 72 66 74" stroke="#4a362c" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  <path d="M94 74 C100 72 108 72 114 76" stroke="#4a362c" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".55"/>
+  <!-- mắt to, có mi cong -->
+  <g class="eyeOpen"><ellipse cx="57" cy="92" rx="9.5" ry="9" fill="#fff"/><ellipse cx="103" cy="92" rx="9.5" ry="9" fill="#fff"/>
+    <g class="pupils"><circle cx="57" cy="93" r="6.4" fill="#3a2418"/><circle cx="103" cy="93" r="6.4" fill="#3a2418"/>
+      <circle cx="59.2" cy="90" r="2.1" fill="#fff"/><circle cx="105.2" cy="90" r="2.1" fill="#fff"/><circle cx="55" cy="96" r="1" fill="#fff"/><circle cx="101" cy="96" r="1" fill="#fff"/></g></g>
+  <path d="M46.5 89 C50 82.5 64 82 68 88.5 L71 86.5" stroke="#1f1612" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 88.5 C96 82 110 82.5 113.5 89 L116 86.8" stroke="#1f1612" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- má hồng đậm, mũi, môi hồng -->
+  <ellipse cx="44" cy="110" rx="10" ry="6" fill="#f28c95" opacity=".5"/><ellipse cx="116" cy="110" rx="10" ry="6" fill="#f28c95" opacity=".5"/>
+  <path d="M77 108 C78.5 110.5 81.5 110.5 83 108" stroke="#e0a58c" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M72 120 C76 124.5 84 124.5 88 120 C84 121.5 76 121.5 72 120 Z" fill="#e2777f" stroke="#d96b74" stroke-width="2" stroke-linejoin="round"/>
+</svg><div class="bsay" hidden></div></div>
   <div class="pinpane" id="pinpane" hidden><canvas id="pinCv"></canvas><div class="pinrail" id="pinRail"><span id="pinLbl">Đề đã ghim</span><i></i><button id="pinClose" aria-label="Bỏ ghim" title="Bỏ ghim">✕</button></div></div>
   <canvas id="main"></canvas>
   <canvas id="ov"></canvas>
@@ -536,6 +638,8 @@ body.retro .pinrail span{font:italic 600 14px var(--mathf);color:rgba(243,232,21
     <div><h3>Giao diện</h3><div class="chips">
       <button class="chip" data-skin="retro">Hoài niệm</button>
       <button class="chip" data-skin="modern">Hiện đại</button>
+      <button class="chip" id="buddyBtn" aria-pressed="false">Bé thầy</button>
+      <button class="chip" id="buddy2Btn" aria-pressed="false">Bé trợ giảng</button>
     </div></div>
     <div><h3>Nền bảng</h3><div class="chips">
       <button class="chip" data-board="green" style="--c:#1f4a3a"><i></i>Xanh</button>
@@ -7247,6 +7351,78 @@ $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y
   $('pinCv').addEventListener('pointerdown', e => down(e, false));
   for (const el of [$('pinRail'), $('pinCv')]) { el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); }
   window.addEventListener('resize', () => { if (pin) { pin.h = Math.round(clamp(pin.h, 70, $('stage').clientHeight - 150)); pinLater(); } });
+}
+/* ---------- Trợ giảng chibi: chỉ để vui, không ảnh hưởng gì tới bảng ----------
+   Có hai bé: bé thầy (#buddy) và bé trợ giảng (#buddy2); mỗi bé bật / tắt riêng ở menu ⋯ → Giao diện.
+   - Mắt nhìn theo đầu bút / ngón tay trên bảng; ngừng viết một lúc thì nhìn ra lớp.
+   - Chớp mắt ngẫu nhiên; thỉnh thoảng nhún nhảy hoặc nói một câu (sửa câu nói ở BUDDY_SAY ngay dưới).
+   - Chạm vào bé: bé vẫy tay nói một câu. Giữ rồi kéo: dời chỗ (vị trí được nhớ trong máy). */
+const BUDDY_SAY = {
+  buddy: {
+    hello: ['Chào cả lớp!', 'Hôm nay học gì đây?', 'Sẵn sàng rồi nè!'],
+    write: ['Chép kịp không cả lớp?', 'Chỗ này quan trọng nè!', 'Ghi lại nha mấy bạn!', 'Thất bại là thầy đập con!'],
+    undo:  ['Viết lại cho đẹp ha!', 'Không sao, làm lại!'],
+    page:  ['Qua trang mới rồi!', 'Bài mới, tập trung nha!']
+  },
+  buddy2: {
+    hello: ['Chào cả lớp nha!', 'Trợ giảng có mặt!', 'Học vui nha mấy bạn!'],
+    write: ['Thầy giảng hay quá!', 'Ai chưa hiểu giơ tay nè!', 'Chú ý chỗ này nha!', 'Cố lên cả lớp ơi!'],
+    undo:  ['Ơ, sai hả thầy?', 'Thầy sửa lại xíu nè!'],
+    page:  ['Trang mới tinh!', 'Tiếp nè cả lớp!']
+  }
+};
+const buddies = [];
+function makeBuddy(id, btnId, defOn){
+  const B = $(id), say = B.querySelector('.bsay'), P = B.querySelector('.pupils'), stage = $('stage'), KEY = 'dmath-slate-' + id, POS_KEY = KEY + '-pos', lines = BUDDY_SAY[id];
+  const me = { on:false, B };
+  let idleT = 0, sayT = 0, strokesSince = Math.floor(Math.random() * 7), lastSay = 0, drag = null;
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  me.talk = (kind, force) => {                         // nói một câu; không nói dồn dập (cách nhau ít nhất 12 giây trừ khi force)
+    if (!me.on) return; const now = performance.now(); if (!force && now - lastSay < 12000) return;
+    lastSay = now; say.textContent = pick(lines[kind]); say.hidden = false;
+    clearTimeout(sayT); sayT = setTimeout(() => { say.hidden = true; }, 2600);
+  };
+  me.play = cls => { B.classList.remove(cls); void B.offsetWidth; B.classList.add(cls); setTimeout(() => B.classList.remove(cls), 1100); };
+  me.look = (x, y) => {                                // dời con ngươi về phía điểm (x, y) trên màn hình
+    if (!me.on) return; const r = B.getBoundingClientRect(), ex = r.left + r.width * 0.5, ey = r.top + r.height * 0.46;
+    const dx = x - ex, dy = y - ey, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 160) * 3.2;
+    P.style.transform = `translate(${(dx / d * k).toFixed(2)}px,${(dy / d * k).toFixed(2)}px)`;
+    clearTimeout(idleT); idleT = setTimeout(() => { P.style.transform = ''; }, 3500);
+  };
+  me.stroke = () => { if (++strokesSince >= 14 && Math.random() < 0.5) { strokesSince = 0; me.play('hop'); me.talk('write'); } };
+  const blink = () => { if (me.on && !document.hidden) { B.classList.add('blink'); setTimeout(() => B.classList.remove('blink'), 130); } setTimeout(blink, 2500 + Math.random() * 4000); };
+  setTimeout(blink, 2000 + Math.random() * 3000);
+  const set = v => {
+    me.on = v; B.hidden = !v; $(btnId).setAttribute('aria-pressed', v);
+    try { localStorage.setItem(KEY, v ? '1' : '0'); } catch (_) {}
+    if (v) { me.play('wave'); me.talk('hello', true); }
+  };
+  $(btnId).addEventListener('click', () => set(!me.on));
+  const place = (rx, by) => { const W = stage.clientWidth, H = stage.clientHeight, w = B.offsetWidth || 104;
+    B.style.right = clamp(rx, 0, W - w) + 'px'; B.style.bottom = clamp(by, 0, H - w * 1.25) + 'px'; };
+  try { const q = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); if (q) place(q[0], q[1]); } catch (_) {}
+  B.addEventListener('pointerdown', e => { const cs = getComputedStyle(B); drag = { id:e.pointerId, x:e.clientX, y:e.clientY, r:parseFloat(cs.right) || 16, b:parseFloat(cs.bottom) || 10, moved:false };
+    try { B.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); e.stopPropagation(); });
+  B.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (Math.hypot(dx, dy) > 4) drag.moved = true; if (drag.moved) place(drag.r - dx, drag.b - dy); });
+  const end = e => { if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved) { me.play('wave'); me.talk('write', true); }
+    else try { localStorage.setItem(POS_KEY, JSON.stringify([parseFloat(B.style.right), parseFloat(B.style.bottom)])); } catch (_) {}
+    drag = null; };
+  B.addEventListener('pointerup', end); B.addEventListener('pointercancel', end);
+  set((() => { try { const v = localStorage.getItem(KEY); return v === null ? defOn : v === '1'; } catch (_) { return defOn; } })());
+  buddies.push(me);
+}
+makeBuddy('buddy', 'buddyBtn', true);
+makeBuddy('buddy2', 'buddy2Btn', true);
+{
+  const stage = $('stage'), inBuddy = t => buddies.some(b => b.B.contains(t));
+  stage.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'pen') for (const b of buddies) b.look(e.clientX, e.clientY); }, { passive:true });
+  stage.addEventListener('pointerdown', e => { if (!inBuddy(e.target)) for (const b of buddies) b.look(e.clientX, e.clientY); }, { passive:true });
+  stage.addEventListener('pointerup', e => { if (inBuddy(e.target) || tool !== 'pen') return; const on = buddies.filter(b => b.on); if (on.length) on[Math.floor(Math.random() * on.length)].stroke(); }, { passive:true });
+  const one = () => { const on = buddies.filter(b => b.on); return on[Math.floor(Math.random() * on.length)]; };   // mỗi lần chỉ một bé lên tiếng
+  $('undo').addEventListener('click', () => { const b = one(); if (b && Math.random() < 0.35) b.talk('undo'); });
+  $('pgAdd') && $('pgAdd').addEventListener('click', () => { const b = one(); if (b) { b.play('wave'); b.talk('page'); } });
 }
 const SKIN_KEY = 'dmath-slate-skin';
 /* Biểu tượng riêng của kiểu Hoài niệm: bút = viên phấn, tẩy = bông lau bảng, sổ = cuốn vở có nhãn. Kiểu Hiện đại dùng lại hình gốc (cất trong ICON_KEEP). */
