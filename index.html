@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v135 -->
+<!-- dmath Slate, bản web v136 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -988,7 +988,7 @@ function invalidate(m, rect){
   else if (m) need = 3;
   if (!raf) raf = requestAnimationFrame(frame);
 }
-function frame(ts){ raf = 0; const n = need, r = dRect; need = 0; dRect = null; if (pin && (n === 3 || (n === 1 && r && r[3] > pin.y && r[1] < pin.y + pin.h / pinS()))) pinLater(); const t0 = perfOn ? performance.now() : 0; if (n === 3) renderMain(); else if (n === 4) renderZoom(); else if (n === 2) renderPan(); else if (n === 1) renderRect(r); renderOverlay(); if (perfOn) perfFrame(ts, performance.now() - t0, n); }
+function frame(ts){ raf = 0; const n = need, r = dRect; need = 0; dRect = null; if (n === 3 || n === 2) trimMem(); if (pin && (n === 3 || (n === 1 && r && r[3] > pin.y && r[1] < pin.y + pin.h / pinS()))) pinLater(); const t0 = perfOn ? performance.now() : 0; if (n === 3) renderMain(); else if (n === 4) renderZoom(); else if (n === 2) renderPan(); else if (n === 1) renderRect(r); renderOverlay(); if (perfOn) perfFrame(ts, performance.now() - t0, n); }
 /* Đo độ mượt (bật trong bảng Cài đặt): chỉ tính lúc bút đang chạm bảng.
    Dòng 1: số khung hình mỗi giây và khung chậm nhất; dòng 2: iPad đọc vị trí bút bao nhiêu lần mỗi giây; dòng 3: thời gian app tính toán cho mỗi khung hình. */
 let perfOn = false, perfS = null;
@@ -1081,7 +1081,7 @@ function renderZoom(){
   lastV = null;                                        // hình trên màn hình đang là hình co giãn: lần vẽ kế tiếp không được chép lại nó
 }
 function zoomDone(px, py){                             // nhấc tay sau khi phóng: gần 100% thì hít về đúng 100%, rồi vẽ lại nét căng
-  zs = null;
+  zs = null; freeCanvas(zcv);                          // trả bộ nhớ tấm chụp (lần phóng sau dựng lại)
   if (Math.abs(view.zoom - 1) > 0.004 && Math.abs(view.zoom - 1) < 0.07) zoomTo(1, px, py); else { invalidate(true); scheduleSave(); }
 }
 function zoomTo(target, px, py){                       // phóng êm tới mức target quanh điểm (px, py) trong khoảng 0,18 giây
@@ -6385,6 +6385,22 @@ async function renderBg(i, targetW, dark){            // dựng trang bảng th�
   if (dark) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'difference'; g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); }   // đảo màu: giấy đen, chữ trắng
   return { canvas:cv, dx:(CONFIG.WORLD_W - dw) / 2, dy:(bg.ph - dh) / 2, dw, dh, dark, w:targetW };
 }
+/* Dọn bộ nhớ khung vẽ (v136). Safari trên iPad có giới hạn tổng bộ nhớ cho các khung vẽ; vượt giới hạn là bảng / trang PDF hiện trắng mà không báo lỗi.
+   Nên app chỉ giữ thứ ở gần chỗ đang xem:
+   - trang PDF đã dựng: trang đang thấy và 1 trang mỗi phía (cùng các trang trong phần đề ghim);
+   - bản đảo màu của ảnh kiểu phấn: chỉ ảnh nằm trong khoảng một màn hình quanh chỗ đang xem.
+   Thứ bị dọn sẽ được dựng lại khi cuộn tới (mất một chút, không mất dữ liệu). */
+let memT = 0;
+const freeCanvas = c => { if (c) { c.width = 0; c.height = 0; } };      // đặt cỡ 0 để Safari trả bộ nhớ ngay, không đợi dọn rác
+function trimMem(force){
+  const now = performance.now(); if (!force && now - memT < 800) return; memT = now;
+  const s = S(), y0 = -view.ty / s, y1 = y0 + ch / s, hv = y1 - y0;
+  if (bg) {
+    const a = Math.floor(y0 / bg.ph) - 1, z = Math.floor(y1 / bg.ph) + 1, pk = pinPages();
+    for (const [k, e] of [...bgCache]) if ((k < a || k > z) && !pk.has(k)) { freeCanvas(e.canvas); bgCache.delete(k); }
+  }
+  for (const im of images) if (im.neg && (im.y + im.h < y0 - hv || im.y > y1 + hv) && !(pin && im.y + im.h > pin.y && im.y < pin.y + pin.h / pinS())) { freeCanvas(im.neg); im.neg = null; }
+}
 function drawBg(c, y0, y1, wantW){                    // vẽ các trang PDF nằm trong vùng nhìn; wantW > 0 thì xin dựng trang còn thiếu
   if (!bg || skipBg) return;
   const dark = isDark();
@@ -6405,10 +6421,7 @@ async function pumpBg(){                              // dựng lần lượt t�
   try {
     const e = await renderBg(i, w, dark);
     if (bg === mine && e) {
-      bgCache.set(i, e);
-      const cur = curPage() - 1;                      // chỉ giữ vài trang gần chỗ đang xem để đỡ tốn bộ nhớ
-      const pk = pinPages();                          // các trang đang hiện trong phần đề ghim: giữ lại, không dọn
-      for (const k of [...bgCache.keys()]) if (Math.abs(k - cur) > 2 && !pk.has(k)) bgCache.delete(k);
+      bgCache.set(i, e); trimMem(true);
       invalidate(true);
     }
   } catch (_) {}
@@ -6695,6 +6708,7 @@ addEventListener('pagehide', () => { commitText(); save(); });                 /
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 function resetBoard(){                                // dọn bảng trước khi nạp sổ khác
   ed = null; $('ted').hidden = true;
+  for (const e of bgCache.values()) freeCanvas(e.canvas); for (const im of images) freeCanvas(im.neg);   // trả bộ nhớ trang PDF và ảnh đảo màu của sổ cũ ngay
   strokes = []; graphs = []; images = []; covers = []; texts = []; undoStack = []; redoStack = []; setSel([]); cur = null; lasso = null; xf = null;
   bg = null; bgCache.clear(); bgWant.clear(); view.zoom = 1; view.tx = 0; view.ty = 0;
 }
