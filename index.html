@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v136 -->
+<!-- dmath Slate, bản web v137 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -936,7 +936,8 @@ function resize(){
   view.tx = -wx * S(); view.ty = -wy * S();
   clampView(); updateNav(); invalidate(true);
 }
-function toWorld(e){ const s = S(); return { x:(e.clientX - left - view.tx) / s, y:(e.clientY - topPx - view.ty) / s }; }
+let wmap = null;                                       // khi đang viết lên phần đề ghim: hàm đổi toạ độ màn hình → toạ độ bảng theo phần ghim
+function toWorld(e){ if (wmap) return wmap(e); const s = S(); return { x:(e.clientX - left - view.tx) / s, y:(e.clientY - topPx - view.ty) / s }; }
 function zoomAt(px, py, f){
   const z = clamp(view.zoom * f, CONFIG.ZOOM_MIN, CONFIG.ZOOM_MAX); f = z / view.zoom;
   view.tx = px - (px - view.tx) * f; view.ty = py - (py - view.ty) * f; view.zoom = z;
@@ -1499,7 +1500,7 @@ function finish(){
     else {
       delete cur.snap; computeBB(cur); strokes.push(cur); undoStack.push({ t:'add', s:cur }); redoStack.length = 0; justAdded = cur;
       const n = cur.pts.length, sy = cur.pts[n - 3] * S() + view.ty;                    // nét vừa xong kết thúc sát mép dưới: hẹn giờ cuộn
-      if (autoScroll && sy > ch - Math.min(120, ch * 0.18)) autoT = setTimeout(() => { if (activeId === null && !ed) scrollToY(-view.ty / S() + ch * 0.45 / S()); }, 700);
+      if (autoScroll && !wmap && sy > ch - Math.min(120, ch * 0.18)) autoT = setTimeout(() => { if (activeId === null && !ed) scrollToY(-view.ty / S() + ch * 0.45 / S()); }, 700);
     }
   } else if (mode === 'erase' && eraseSnap) { if (eraseSnap !== strokes) { undoStack.push({ t:'set', a:eraseSnap, b:strokes.slice() }); redoStack.length = 0; } eraseSnap = null; }
   else if (mode === 'erase' && eraseBatch.length) { undoStack.push({ t:'del', items:eraseBatch }); redoStack.length = 0; }
@@ -7305,6 +7306,7 @@ function pinRender(){
   g.fillStyle = BOARDS[board].bg; g.fillRect(0, 0, W, hp);
   g.save(); g.setTransform(dpr * s, 0, 0, dpr * s, -pin.x * s * dpr, -pin.y * s * dpr);
   paintWorld(g, pin.x, pin.y, pin.x + pin.ww, pin.y + pin.h / s, s, false);
+  if (wmap && cur && cur.tool !== 'laser') drawStroke(g, cur);   // nét đang viết dở lên đề ghim
   g.restore();
   if (bg) {                                           // trang PDF của đề chưa có sẵn (bị dọn khi cuộn xa): xin dựng lại, dựng xong tự vẽ lại phần ghim
     const want = Math.min(2400, Math.round(CONFIG.WORLD_W * s * dpr)), dark = isDark();
@@ -7341,21 +7343,41 @@ $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y
   const pts = new Map(); let d = null, rq = 0;        // pts: các ngón / bút đang đặt trong phần ghim; d: thao tác đang diễn ra
   const draw = () => { if (!rq) rq = requestAnimationFrame(() => { rq = 0; pinRender(); }); };
   const two = () => { const [a, b] = [...pts.values()]; return { cx:(a.x + b.x) / 2, cy:(a.y + b.y) / 2, dist:Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)) }; };
-  const begin = () => {                               // chốt lại trạng thái lúc bắt đầu (hoặc lúc số ngón thay đổi)
+  const rebase = () => {                               // chốt lại trạng thái lúc bắt đầu (hoặc lúc số ngón thay đổi)
     if (pts.size >= 2) { const t = two(); d = { kind:'pinch', ...t, x:pin.x, y:pin.y, ww:pin.ww }; }
     else if (pts.size === 1) { const a = [...pts.values()][0]; d = { kind:d && d.kind === 'rail' ? 'rail' : 'pan', sx:a.x, sy:a.y, x:pin.x, y:pin.y, h:pin.h, moved:d ? d.moved : false }; }
     else d = null;
   };
+  // Viết lên đề ghim: bút (Apple Pencil) với bút / bút dạ / tẩy thì vẽ thẳng vào bảng thật tại chỗ của đề; ngón tay vẫn là dời / phóng phần ghim
+  let ink = null, irq = 0;
+  const inkDraw = () => { if (!irq) irq = requestAnimationFrame(() => { irq = 0; pinRender(); }); };
+  const inkOn = e => e.pointerType === 'pen' && !player && (tool === 'pen' || tool === 'hl' || tool === 'eraser') && activeId === null;
+  const inkStart = e => {
+    const r = $('pinCv').getBoundingClientRect(), s0 = pinS(), px = pin.x, py = pin.y;
+    wmap = ev => ({ x:px + (ev.clientX - r.left) / s0, y:py + (ev.clientY - r.top) / s0 });
+    ink = e.pointerId; try { $('pinCv').setPointerCapture(e.pointerId); } catch (_) {}
+    lastPen = performance.now(); begin(e); if (activeId !== e.pointerId) { wmap = null; ink = null; return; }
+    inkDraw();
+  };
+  const inkMove = e => { if (ink !== e.pointerId || activeId !== e.pointerId) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : []; (evs.length ? evs : [e]).forEach(step); inkDraw(); };
+  const inkEnd = e => { if (ink !== e.pointerId) return;
+    lastPen = lastPenUp = performance.now();
+    if (activeId === e.pointerId) { if (e.type === 'pointerup') step(e); finish(); }
+    wmap = null; ink = null; pinRender(); invalidate(true); };
+  $('pinCv').addEventListener('pointermove', inkMove); $('pinCv').addEventListener('pointerup', inkEnd); $('pinCv').addEventListener('pointercancel', inkEnd);
   const down = (e, rail) => {
     if (!pin || e.target.closest('button')) return;
+    if (!rail && inkOn(e)) { e.preventDefault(); e.stopPropagation(); inkStart(e); return; }
+    if (ink !== null) return;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
     e.preventDefault(); e.stopPropagation();
     if (rail) { pts.clear(); pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); d = { kind:'rail', sx:e.clientX, sy:e.clientY, h:pin.h, moved:false }; return; }
     if (d && d.kind === 'rail') return;
-    pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); begin();
+    pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); rebase();
   };
   const move = e => {
-    if (!d || !pin || !pts.has(e.pointerId)) return;
+    if (ink !== null || !d || !pin || !pts.has(e.pointerId)) return;
     pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); const s = pinS();
     if (d.kind === 'rail') {                          // kéo thanh ngang: đổi độ cao (đang thu gọn mà kéo thì mở ra)
       const dy = e.clientY - d.sy; if (Math.abs(dy) > 5) d.moved = true;
@@ -7371,7 +7393,7 @@ $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y
   const up = e => {
     if (!pts.has(e.pointerId)) return; pts.delete(e.pointerId);
     if (d && d.kind === 'rail') { if (!d.moved && pin) { pin.min = !pin.min; pinRender(); } d = null; pts.clear(); return; }   // chạm thanh mà không kéo: thu gọn / mở lại
-    begin();
+    rebase();
   };
   $('pinRail').addEventListener('pointerdown', e => down(e, true));
   $('pinCv').addEventListener('pointerdown', e => down(e, false));
@@ -7418,10 +7440,10 @@ function makeBuddy(id, btnId, defOn){
   me.stroke = () => { if (++strokesSince >= 14 && Math.random() < 0.5) { strokesSince = 0; me.play('hop'); me.talk('write'); } };
   const blink = () => { if (me.on && !document.hidden) { B.classList.add('blink'); setTimeout(() => B.classList.remove('blink'), 130); } setTimeout(blink, 2500 + Math.random() * 4000); };
   setTimeout(blink, 2000 + Math.random() * 3000);
-  const set = v => {
+  const set = (v, init) => {
     me.on = v; B.hidden = !v; $(btnId).setAttribute('aria-pressed', v);
     try { localStorage.setItem(KEY, v ? '1' : '0'); } catch (_) {}
-    if (v) { me.play('wave'); me.talk('hello', true); }
+    if (v && !(init && buddies.some(b => b.on))) { me.play('wave'); me.talk('hello', true); }   // lúc mở app chỉ một bé chào, để hai bong bóng chữ không đè nhau
   };
   me.set = set;
   $(btnId).addEventListener('click', () => { set(!me.on); syncTog(); });
@@ -7437,7 +7459,7 @@ function makeBuddy(id, btnId, defOn){
     else try { localStorage.setItem(POS_KEY, JSON.stringify([parseFloat(B.style.right), parseFloat(B.style.bottom)])); } catch (_) {}
     drag = null; };
   B.addEventListener('pointerup', end); B.addEventListener('pointercancel', end);
-  set((() => { try { const v = localStorage.getItem(KEY); return v === null ? defOn : v === '1'; } catch (_) { return defOn; } })());
+  set((() => { try { const v = localStorage.getItem(KEY); return v === null ? defOn : v === '1'; } catch (_) { return defOn; } })(), true);
   buddies.push(me);
 }
 /* Nút tròn ở góc bảng: đang có bé nào hiện thì ẩn hết (nhớ những bé đang hiện); không bé nào hiện thì hiện lại đúng các bé đó */
