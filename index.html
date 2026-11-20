@@ -9,7 +9,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v137 -->
+<!-- dmath Slate, bản web v138 -->
+<script>window.SLATE_VER = 'v138';</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -495,6 +496,7 @@ body.retro .bsay{font:italic 600 15.5px/1.35 var(--mathf)}
 .buddyTog[aria-pressed="false"]{opacity:.55}
 .buddyTog[aria-pressed="true"] .off{display:none}
 body.retro .buddyTog{background:#4f3929;color:var(--cream);border-color:rgba(0,0,0,.45)}
+.mver{margin:0;font:500 13px var(--font);color:var(--muted)}
 </style>
 
 <!-- Thanh công cụ nằm dưới đáy màn hình, gần tay cầm bút. Ba cụm:
@@ -646,6 +648,7 @@ body.retro .buddyTog{background:#4f3929;color:var(--cream);border-color:rgba(0,0
   <div class="hint" id="hint"><strong>Đặt bút là viết</strong><span>Hai ngón tay để cuộn và phóng to. Vẽ một đoạn, một vòng tròn hay một mũi tên rồi giữ yên bút, hình tự nắn đẹp.</span></div>
 
   <div class="menu" id="menu" hidden>
+    <div><h3>Phiên bản</h3><p class="mver" id="mver"></p></div>
     <div><h3>Giao diện</h3><div class="chips">
       <button class="chip" data-skin="retro">Hoài niệm</button>
       <button class="chip" data-skin="modern">Hiện đại</button>
@@ -7351,7 +7354,10 @@ $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y
   // Viết lên đề ghim: bút (Apple Pencil) với bút / bút dạ / tẩy thì vẽ thẳng vào bảng thật tại chỗ của đề; ngón tay vẫn là dời / phóng phần ghim
   let ink = null, irq = 0;
   const inkDraw = () => { if (!irq) irq = requestAnimationFrame(() => { irq = 0; pinRender(); }); };
-  const inkOn = e => e.pointerType === 'pen' && !player && (tool === 'pen' || tool === 'hl' || tool === 'eraser') && activeId === null;
+  // Cái gì viết được trên bảng thì viết được trên đề ghim: bút luôn viết; chuột (nút trái) viết; ngón tay chỉ viết khi đang bật "vẽ bằng ngón tay" (lúc đó hai ngón để dời, phóng)
+  const inkOn = e => !player && (tool === 'pen' || tool === 'hl' || tool === 'eraser') && activeId === null
+    && (e.pointerType === 'pen' || (e.pointerType === 'mouse' && e.button === 0) || (e.pointerType === 'touch' && fingerDraw && !pts.size));
+  let inkLast = null;                                 // vị trí cuối của ngón tay đang viết (để chuyển sang chụm hai ngón nếu có ngón thứ hai)
   const inkStart = e => {
     const r = $('pinCv').getBoundingClientRect(), s0 = pinS(), px = pin.x, py = pin.y;
     wmap = ev => ({ x:px + (ev.clientX - r.left) / s0, y:py + (ev.clientY - r.top) / s0 });
@@ -7359,16 +7365,21 @@ $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y
     lastPen = performance.now(); begin(e); if (activeId !== e.pointerId) { wmap = null; ink = null; return; }
     inkDraw();
   };
-  const inkMove = e => { if (ink !== e.pointerId || activeId !== e.pointerId) return;
+  const inkMove = e => { if (ink !== e.pointerId || activeId !== e.pointerId) return; inkLast = { x:e.clientX, y:e.clientY };
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : []; (evs.length ? evs : [e]).forEach(step); inkDraw(); };
-  const inkEnd = e => { if (ink !== e.pointerId) return;
+  const inkEnd = e => { if (ink !== e.pointerId) return; inkLast = null;
     lastPen = lastPenUp = performance.now();
     if (activeId === e.pointerId) { if (e.type === 'pointerup') step(e); finish(); }
     wmap = null; ink = null; pinRender(); invalidate(true); };
+  $('pinCv').addEventListener('wheel', e => { if (!pin) return; e.preventDefault(); e.stopPropagation(); pin.y = Math.max(-20, pin.y + e.deltaY / pinS()); pin.x += e.deltaX / pinS(); inkDraw(); }, { passive:false });   // con lăn chuột: cuộn đề trong phần ghim (chuột giờ dùng để viết)
   $('pinCv').addEventListener('pointermove', inkMove); $('pinCv').addEventListener('pointerup', inkEnd); $('pinCv').addEventListener('pointercancel', inkEnd);
   const down = (e, rail) => {
     if (!pin || e.target.closest('button')) return;
     if (!rail && inkOn(e)) { e.preventDefault(); e.stopPropagation(); inkStart(e); return; }
+    if (ink !== null && e.pointerType === 'touch' && activeIsTouch) {   // đang viết bằng ngón tay mà ngón thứ hai chạm: bỏ nét dở, chuyển sang dời / phóng phần ghim
+      const id0 = ink; cancelCur(); wmap = null; ink = null; pinRender();
+      if (inkLast) pts.set(id0, inkLast);
+    }
     if (ink !== null) return;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
     e.preventDefault(); e.stopPropagation();
@@ -7486,6 +7497,7 @@ $('buddyTog').addEventListener('click', e => {
   $('undo').addEventListener('click', () => { const b = one(); if (b && Math.random() < 0.35) b.talk('undo'); });
   $('pgAdd') && $('pgAdd').addEventListener('click', () => { const b = one(); if (b) { b.play('wave'); b.talk('page'); } });
 }
+$('mver').textContent = window.SLATE_VER ? 'Bản web ' + window.SLATE_VER + ' (mở app khi có mạng là tự lên bản mới)' : 'Bản thử trong Claude';   // số phiên bản do bản web ghi sẵn ở đầu trang
 const SKIN_KEY = 'dmath-slate-skin';
 /* Biểu tượng riêng của kiểu Hoài niệm: bút = viên phấn, tẩy = bông lau bảng, sổ = cuốn vở có nhãn. Kiểu Hiện đại dùng lại hình gốc (cất trong ICON_KEEP). */
 const RETRO_ICONS = {
