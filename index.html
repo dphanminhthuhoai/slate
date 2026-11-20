@@ -9,8 +9,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v139 -->
-<script>window.SLATE_VER = 'v139';</script>
+<!-- dmath Slate, bản web v140 -->
+<script>window.SLATE_VER = 'v140';</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -467,6 +467,9 @@ body.retro .menu .brow > button{border:0;background:rgba(255,253,244,.82);box-sh
 .pinrail::before{content:"";position:absolute;inset:-12px 0}                       /* vùng bắt rộng hơn thanh nhìn thấy, cho dễ kéo */
 .pinrail i{width:56px;height:5px;border-radius:3px;background:var(--muted);opacity:.85}
 .pinrail span{position:absolute;left:max(14px,env(safe-area-inset-left,0px));font:600 12.5px var(--font);color:var(--muted);pointer-events:none}
+.pinrail #pinMark{right:calc(max(10px,env(safe-area-inset-right,0px)) + 50px);display:grid;place-items:center}
+.pinrail #pinMark svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.pinrail #pinMark[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:transparent}
 .pinrail button{position:absolute;right:max(10px,env(safe-area-inset-right,0px));top:50%;translate:0 -50%;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--chrome);color:var(--fg);font-size:16px;cursor:pointer;z-index:1;box-shadow:0 3px 8px rgba(0,0,0,.3)}
 body.retro .pinrail{border:0;box-shadow:0 1px 0 rgba(0,0,0,.6) inset,0 3px 0 rgba(255,226,180,.2) inset,0 -1px 0 rgba(0,0,0,.5) inset;background:linear-gradient(180deg,#7a5a40,#5b412e 50%,#432f22)}
 body.retro .pinrail i{background:var(--cream);opacity:.55}
@@ -644,7 +647,7 @@ body.retro .buddyTog{background:#4f3929;color:var(--cream);border-color:rgba(0,0
   <path d="M77 108 C78.5 110.5 81.5 110.5 83 108" stroke="#e0a58c" stroke-width="2" fill="none" stroke-linecap="round"/>
   <path d="M72 120 C76 124.5 84 124.5 88 120 C84 121.5 76 121.5 72 120 Z" fill="#e2777f" stroke="#d96b74" stroke-width="2" stroke-linejoin="round"/>
 </svg><div class="bsay" hidden></div></div>
-  <div class="pinpane" id="pinpane" hidden><div class="pinwrap"><canvas id="pinCv"></canvas><canvas id="pinInk"></canvas></div><div class="pinrail" id="pinRail"><span id="pinLbl">Đề đã ghim</span><i></i><button id="pinClose" aria-label="Bỏ ghim" title="Bỏ ghim">✕</button></div></div>
+  <div class="pinpane" id="pinpane" hidden><div class="pinwrap"><canvas id="pinCv"></canvas><canvas id="pinInk"></canvas></div><div class="pinrail" id="pinRail"><span id="pinLbl">Đề đã ghim</span><i></i><button id="pinMark" aria-pressed="false" aria-label="Khoanh đề" title="Khoanh đề: bật để viết, khoanh, tô lên đề ghim; tắt để phần ghim chỉ dời và phóng"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z"/><path d="M13.5 6.5l3 3"/></svg></button><button id="pinClose" aria-label="Bỏ ghim" title="Bỏ ghim">✕</button></div></div>
   <canvas id="main"></canvas>
   <canvas id="ov"></canvas>
   <div class="hint" id="hint"><strong>Đặt bút là viết</strong><span>Hai ngón tay để cuộn và phóng to. Vẽ một đoạn, một vòng tròn hay một mũi tên rồi giữ yên bút, hình tự nắn đẹp.</span></div>
@@ -909,7 +912,7 @@ const stage = $('stage'), main = $('main'), ov = $('ov');
 const ctx = main.getContext('2d'), octx = ov.getContext('2d');
 let tool = 'pen', slot = 0, sizeIdx = 1, board = 'green', pattern = 'none';
 let lineKind = '', lastLine = 'solid';               // công cụ Đường thẳng: '' = không dùng; 'solid' liền, 'dash' đứt, 'arrow' mũi tên. lastLine: kiểu dùng gần nhất
-let pin = null, pinTimer = 0;   // pin: phần đề đang ghim phía trên { x, y: góc trên trái tính theo toạ độ bảng, ww: bề ngang vùng bảng hiện trong phần ghim, h: chiều cao trên màn hình, min: đang thu gọn }
+let pin = null, pinTimer = 0, pinMarkOn = false;   // pinMarkOn: đang bật nút Khoanh đề (mặc định tắt: phần ghim chỉ để nhìn)   // pin: phần đề đang ghim phía trên { x, y: góc trên trái tính theo toạ độ bảng, ww: bề ngang vùng bảng hiện trong phần ghim, h: chiều cao trên màn hình, min: đang thu gọn }
 let penW = 0, hlW = 0, penA = 1, hlA = 0.35, penDash = '', penGap = 1;   // penDash: '' liền | dash | dot | dashdot | long; penGap: hệ số khoảng đứt         // độ dày và độ đậm đang chọn của bút và bút dạ quang (penW = 0: dùng cỡ theo ba nút chấm)
 let strokes = [];              // mỗi nét: {tool, slot, size, line, t0, pts:[x,y,lực,thời gian,...], bb}
 let undoStack = [], redoStack = [];
@@ -7338,10 +7341,12 @@ function pinRegion(r){                                // ghim đúng một vùng
   view.ty = pin.h + 30 - (r.y + r.h + 8) * S(); clampView(); invalidate(true);   // cuộn bảng để chỗ ngay dưới đề nằm sát dưới thanh ngang: viết lời giải ngay bên dưới, không thấy đề hai lần
   pinShow(); toast('Đã ghim vùng vừa chọn lên trên. Chạm thanh ngang để thu gọn hoặc mở lại.');
 }
-function pinOff(){ pin = null; $('pinpane').hidden = true; $('pinBtn').setAttribute('aria-pressed', 'false'); $('pinQuick').setAttribute('aria-pressed', 'false'); }
+function pinOff(){ setPinMark(false); pin = null; $('pinpane').hidden = true; $('pinBtn').setAttribute('aria-pressed', 'false'); $('pinQuick').setAttribute('aria-pressed', 'false'); }
 $('pinQuick').addEventListener('click', () => { if (pin) pinOff(); else pinOn(); });   // nút Ghim đề ngay trên thanh công cụ
 $('pinBtn').addEventListener('click', () => { $('menu').hidden = true; if (pin) pinOff(); else pinOn(); });
 $('pinClose').addEventListener('click', e => { e.stopPropagation(); pinOff(); });
+function setPinMark(v){ pinMarkOn = v; $('pinMark').setAttribute('aria-pressed', v); $('pinCv').style.cursor = v ? 'crosshair' : ''; }
+$('pinMark').addEventListener('click', e => { e.stopPropagation(); setPinMark(!pinMarkOn); if (pinMarkOn) toast('Đang khoanh đề: bút viết, khoanh, tô lên đề ghim. Bấm lại nút bút để tắt.'); });
 $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y, w:clip.w, h:clip.h }; clip = null; $('clipbar').hidden = true; pinRegion(r); };
 {
   const pts = new Map(); let d = null, rq = 0;        // pts: các ngón / bút đang đặt trong phần ghim; d: thao tác đang diễn ra
@@ -7366,7 +7371,7 @@ $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y
   };
   const inkClear = () => { const cv = $('pinInk'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); };
   // Cái gì viết được trên bảng thì viết được trên đề ghim: bút luôn viết; chuột (nút trái) viết; ngón tay chỉ viết khi đang bật "vẽ bằng ngón tay" (lúc đó hai ngón để dời, phóng)
-  const inkOn = e => !player && (tool === 'pen' || tool === 'hl' || tool === 'eraser') && activeId === null
+  const inkOn = e => pinMarkOn && !player && (tool === 'pen' || tool === 'hl' || tool === 'eraser') && activeId === null
     && (e.pointerType === 'pen' || (e.pointerType === 'mouse' && e.button === 0) || (e.pointerType === 'touch' && fingerDraw && !pts.size));
   let inkLast = null;                                 // vị trí cuối của ngón tay đang viết (để chuyển sang chụm hai ngón nếu có ngón thứ hai)
   const inkStart = e => {
