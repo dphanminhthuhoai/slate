@@ -9,8 +9,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v138 -->
-<script>window.SLATE_VER = 'v138';</script>
+<!-- dmath Slate, bản web v139 -->
+<script>window.SLATE_VER = 'v139';</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -461,6 +461,8 @@ body.retro .menu .brow > button{border:0;background:rgba(255,253,244,.82);box-sh
 /* ========== GHIM ĐỀ (v129): phần trên đứng yên để nhìn đề, phần dưới là bảng chép bài; kéo thanh ngang để đổi độ cao ========== */
 .pinpane{position:absolute;left:0;top:0;right:0;z-index:3;display:flex;flex-direction:column;touch-action:none;box-shadow:0 10px 22px rgba(0,0,0,.35)}
 .pinpane canvas{display:block;width:100%;flex:none;touch-action:none;cursor:grab}
+.pinwrap{position:relative;flex:none}
+#pinInk{position:absolute;inset:0;height:100%;pointer-events:none}   /* lớp vẽ riêng của phần ghim: chỉ vẽ nét đang viết dở, nhẹ nên khoanh đề mượt */
 .pinrail{flex:none;height:22px;position:relative;display:grid;place-items:center;background:var(--chrome);border-block:1px solid var(--line);cursor:ns-resize;touch-action:none}
 .pinrail::before{content:"";position:absolute;inset:-12px 0}                       /* vùng bắt rộng hơn thanh nhìn thấy, cho dễ kéo */
 .pinrail i{width:56px;height:5px;border-radius:3px;background:var(--muted);opacity:.85}
@@ -642,7 +644,7 @@ body.retro .buddyTog{background:#4f3929;color:var(--cream);border-color:rgba(0,0
   <path d="M77 108 C78.5 110.5 81.5 110.5 83 108" stroke="#e0a58c" stroke-width="2" fill="none" stroke-linecap="round"/>
   <path d="M72 120 C76 124.5 84 124.5 88 120 C84 121.5 76 121.5 72 120 Z" fill="#e2777f" stroke="#d96b74" stroke-width="2" stroke-linejoin="round"/>
 </svg><div class="bsay" hidden></div></div>
-  <div class="pinpane" id="pinpane" hidden><canvas id="pinCv"></canvas><div class="pinrail" id="pinRail"><span id="pinLbl">Đề đã ghim</span><i></i><button id="pinClose" aria-label="Bỏ ghim" title="Bỏ ghim">✕</button></div></div>
+  <div class="pinpane" id="pinpane" hidden><div class="pinwrap"><canvas id="pinCv"></canvas><canvas id="pinInk"></canvas></div><div class="pinrail" id="pinRail"><span id="pinLbl">Đề đã ghim</span><i></i><button id="pinClose" aria-label="Bỏ ghim" title="Bỏ ghim">✕</button></div></div>
   <canvas id="main"></canvas>
   <canvas id="ov"></canvas>
   <div class="hint" id="hint"><strong>Đặt bút là viết</strong><span>Hai ngón tay để cuộn và phóng to. Vẽ một đoạn, một vòng tròn hay một mũi tên rồi giữ yên bút, hình tự nắn đẹp.</span></div>
@@ -992,7 +994,7 @@ function invalidate(m, rect){
   else if (m) need = 3;
   if (!raf) raf = requestAnimationFrame(frame);
 }
-function frame(ts){ raf = 0; const n = need, r = dRect; need = 0; dRect = null; if (n === 3 || n === 2) trimMem(); if (pin && (n === 3 || (n === 1 && r && r[3] > pin.y && r[1] < pin.y + pin.h / pinS()))) pinLater(); const t0 = perfOn ? performance.now() : 0; if (n === 3) renderMain(); else if (n === 4) renderZoom(); else if (n === 2) renderPan(); else if (n === 1) renderRect(r); renderOverlay(); if (perfOn) perfFrame(ts, performance.now() - t0, n); }
+function frame(ts){ raf = 0; const n = need, r = dRect; need = 0; dRect = null; if (n === 3 || n === 2) trimMem(); if (pin && !wmap && (n === 3 || (n === 1 && r && r[3] > pin.y && r[1] < pin.y + pin.h / pinS()))) pinLater(); const t0 = perfOn ? performance.now() : 0; if (n === 3) renderMain(); else if (n === 4) renderZoom(); else if (n === 2) renderPan(); else if (n === 1) renderRect(r); renderOverlay(); if (perfOn) perfFrame(ts, performance.now() - t0, n); }
 /* Đo độ mượt (bật trong bảng Cài đặt): chỉ tính lúc bút đang chạm bảng.
    Dòng 1: số khung hình mỗi giây và khung chậm nhất; dòng 2: iPad đọc vị trí bút bao nhiêu lần mỗi giây; dòng 3: thời gian app tính toán cho mỗi khung hình. */
 let perfOn = false, perfS = null;
@@ -7309,7 +7311,6 @@ function pinRender(){
   g.fillStyle = BOARDS[board].bg; g.fillRect(0, 0, W, hp);
   g.save(); g.setTransform(dpr * s, 0, 0, dpr * s, -pin.x * s * dpr, -pin.y * s * dpr);
   paintWorld(g, pin.x, pin.y, pin.x + pin.ww, pin.y + pin.h / s, s, false);
-  if (wmap && cur && cur.tool !== 'laser') drawStroke(g, cur);   // nét đang viết dở lên đề ghim
   g.restore();
   if (bg) {                                           // trang PDF của đề chưa có sẵn (bị dọn khi cuộn xa): xin dựng lại, dựng xong tự vẽ lại phần ghim
     const want = Math.min(2400, Math.round(CONFIG.WORLD_W * s * dpr)), dark = isDark();
@@ -7354,30 +7355,41 @@ $('clipPin').onclick = () => { if (!clip) return; const r = { x:clip.x, y:clip.y
   // Viết lên đề ghim: bút (Apple Pencil) với bút / bút dạ / tẩy thì vẽ thẳng vào bảng thật tại chỗ của đề; ngón tay vẫn là dời / phóng phần ghim
   let ink = null, irq = 0;
   const inkDraw = () => { if (!irq) irq = requestAnimationFrame(() => { irq = 0; pinRender(); }); };
+  const inkLayer = () => {                             // vẽ nét đang viết dở lên lớp riêng (không đụng tới đề bên dưới)
+    if (!irq) irq = requestAnimationFrame(() => { irq = 0;
+      if (!pin || !cur || tool === 'eraser') { pinRender(); return; }   // tẩy làm mất nét có sẵn: phải vẽ lại cả đề
+      const cv = $('pinInk'), base = $('pinCv'), s = pinS();
+      if (cv.width !== base.width || cv.height !== base.height) { cv.width = base.width; cv.height = base.height; }
+      const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+      g.setTransform(dpr * s, 0, 0, dpr * s, -pin.x * s * dpr, -pin.y * s * dpr); drawStroke(g, cur);
+    });
+  };
+  const inkClear = () => { const cv = $('pinInk'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); };
   // Cái gì viết được trên bảng thì viết được trên đề ghim: bút luôn viết; chuột (nút trái) viết; ngón tay chỉ viết khi đang bật "vẽ bằng ngón tay" (lúc đó hai ngón để dời, phóng)
   const inkOn = e => !player && (tool === 'pen' || tool === 'hl' || tool === 'eraser') && activeId === null
     && (e.pointerType === 'pen' || (e.pointerType === 'mouse' && e.button === 0) || (e.pointerType === 'touch' && fingerDraw && !pts.size));
   let inkLast = null;                                 // vị trí cuối của ngón tay đang viết (để chuyển sang chụm hai ngón nếu có ngón thứ hai)
   const inkStart = e => {
+    if (e.pointerType === 'pen' && !penSeen) { penSeen = true; if (fingerDraw) { setFinger(false); toast('Đã nhận bút. Ngón tay giờ chỉ cuộn và phóng to.'); } }   // bút chạm lần đầu ở phần ghim cũng tính như chạm bảng
     const r = $('pinCv').getBoundingClientRect(), s0 = pinS(), px = pin.x, py = pin.y;
     wmap = ev => ({ x:px + (ev.clientX - r.left) / s0, y:py + (ev.clientY - r.top) / s0 });
     ink = e.pointerId; try { $('pinCv').setPointerCapture(e.pointerId); } catch (_) {}
     lastPen = performance.now(); begin(e); if (activeId !== e.pointerId) { wmap = null; ink = null; return; }
-    inkDraw();
+    inkLayer();
   };
   const inkMove = e => { if (ink !== e.pointerId || activeId !== e.pointerId) return; inkLast = { x:e.clientX, y:e.clientY };
-    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : []; (evs.length ? evs : [e]).forEach(step); inkDraw(); };
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : []; (evs.length ? evs : [e]).forEach(step); inkLayer(); };
   const inkEnd = e => { if (ink !== e.pointerId) return; inkLast = null;
     lastPen = lastPenUp = performance.now();
     if (activeId === e.pointerId) { if (e.type === 'pointerup') step(e); finish(); }
-    wmap = null; ink = null; pinRender(); invalidate(true); };
+    wmap = null; ink = null; cancelAnimationFrame(irq); irq = 0; pinRender(); inkClear(); invalidate(true); };   // nhấc bút: vẽ lại đề một lần (đã có nét mới), xoá lớp riêng
   $('pinCv').addEventListener('wheel', e => { if (!pin) return; e.preventDefault(); e.stopPropagation(); pin.y = Math.max(-20, pin.y + e.deltaY / pinS()); pin.x += e.deltaX / pinS(); inkDraw(); }, { passive:false });   // con lăn chuột: cuộn đề trong phần ghim (chuột giờ dùng để viết)
   $('pinCv').addEventListener('pointermove', inkMove); $('pinCv').addEventListener('pointerup', inkEnd); $('pinCv').addEventListener('pointercancel', inkEnd);
   const down = (e, rail) => {
     if (!pin || e.target.closest('button')) return;
     if (!rail && inkOn(e)) { e.preventDefault(); e.stopPropagation(); inkStart(e); return; }
     if (ink !== null && e.pointerType === 'touch' && activeIsTouch) {   // đang viết bằng ngón tay mà ngón thứ hai chạm: bỏ nét dở, chuyển sang dời / phóng phần ghim
-      const id0 = ink; cancelCur(); wmap = null; ink = null; pinRender();
+      const id0 = ink; cancelCur(); wmap = null; ink = null; pinRender(); inkClear();
       if (inkLast) pts.set(id0, inkLast);
     }
     if (ink !== null) return;
