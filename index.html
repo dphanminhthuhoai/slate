@@ -9,8 +9,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<!-- dmath Slate, bản web v140 -->
-<script>window.SLATE_VER = 'v140';</script>
+<!-- dmath Slate, bản web v141 -->
+<script>window.SLATE_VER = 'v141';</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <title>dmath Slate</title>
@@ -689,6 +689,7 @@ body.retro .buddyTog{background:#4f3929;color:var(--cream);border-color:rgba(0,0
       <button class="chip" data-kit="ruler">Thước</button>
       <button class="chip" data-kit="eke">Êke</button>
       <button class="chip" data-kit="pro">Đo độ</button>
+      <button class="chip" data-kit="compa">Compa</button>
     </div>
     <a class="row" id="calcLink" href="https://vinacalapp.pages.dev/" target="_blank" rel="noopener" style="margin-top:8px;text-decoration:none;box-sizing:border-box">Máy tính Vinacal <small id="calcNote">mở cửa sổ riêng</small></a>
     <button class="row" id="coverAdd" style="margin-top:8px">Thêm màn che <small>giấu đáp án, kéo mở dần</small></button>
@@ -1501,6 +1502,10 @@ function trySnap(){                                  // giữ yên bút cuối n
 }
 function finish(){
   clearTimeout(holdT); let justAdded = null;
+  if (mode === 'kit' && kdrag && kdrag.arc && cur) {
+    if (Math.abs(kdrag.sum) > 0.03) { $('hint').hidden = true; computeBB(cur); strokes.push(cur); undoStack.push({ t:'add', s:cur }); redoStack.length = 0; justAdded = cur; }
+    cur = null;
+  }
   if (mode === 'draw' && cur) {
     if (cur.tool === 'laser') { cur.end = performance.now(); lasers.push(cur); }
     else if (lineKind && cur.line && cur.pts.length >= 8 && Math.hypot(cur.pts[4] - cur.pts[0], cur.pts[5] - cur.pts[1]) < 3 / S()) { /* đang bật nét thẳng mà chỉ chạm, chưa kéo: không để lại chấm */ }
@@ -1591,7 +1596,9 @@ const PRO_GRIP = [-KIT.pro.R - 36, 0];                // nút dời của thư�
 function kitHit(w){                                   // điểm w chạm gì: nút xoay 'rot', nút dời 'grip', cung 'arc', thân thước đo độ 'ray', mép 'edge', thân 'move'
   const e = 16 / S();
   for (let i = kit.length - 1; i >= 0; i--) {
-    const t = kit[i], q = toLocal(t, w), h = kitHandle(t);
+    const t = kit[i];
+    if (t.type === 'compa') { const z = compaHit(t, w); if (z) return z; continue; }
+    const q = toLocal(t, w), h = kitHandle(t);
     if (Math.hypot(q.x - h[0], q.y - h[1]) <= 26 / S()) return { t, kind:'rot' };
     if (t.type === 'pro') {
       if (Math.hypot(q.x - PRO_GRIP[0], q.y - PRO_GRIP[1]) <= 26 / S()) return { t, kind:'move' };
@@ -1613,6 +1620,7 @@ function kitHit(w){                                   // điểm w chạm gì: n
 function toggleKit(type){                             // bật: đặt dụng cụ giữa phần bảng đang xem; tắt: cất đi
   const i = kit.findIndex(t => t.type === type);
   if (i >= 0) kit.splice(i, 1);
+  else if (type === 'compa') { const s = S(); $('hint').hidden = true; kit.push({ type, ang:0, r:3 * UNIT, x:(-view.tx + cw / 2) / s - 75, y:(-view.ty + ch / 2) / s + 60 }); }   // compa mở 3 đơn vị, đặt giữa phần bảng đang xem
   else { const s = S(), cx = (-view.tx + cw / 2) / s, cy = (-view.ty + ch / 2) / s; kit.push(type === 'ruler' ? { type, ang:0, x:cx - 350, y:cy - 230 } : type === 'eke' ? { type, ang:0, x:cx - 480, y:cy + 230 } : { type, ang:0, x:cx + 230, y:cy + 230 }); }   // ba dụng cụ đặt lệch nhau cho khỏi chồng lên
   updateUI(); invalidate(false);
 }
@@ -1621,11 +1629,18 @@ function beginKit(e, h){
   try { ov.setPointerCapture(e.pointerId); } catch (_) {}
   const w = toWorld(e); mode = 'kit'; tip = null;
   kit.splice(kit.indexOf(h.t), 1); kit.push(h.t);     // đưa dụng cụ vừa chạm lên trên cùng
-  kdrag = { t:h.t, rot:h.kind === 'rot', x0:w.x, y0:w.y, tx:h.t.x, ty:h.t.y };
+  kdrag = { t:h.t, rot:h.kind === 'rot', kind:h.kind, x0:w.x, y0:w.y, tx:h.t.x, ty:h.t.y };
+  if (h.kind === 'cdraw') {                           // cầm núm compa: bắt đầu một nét cung tròn bằng bút đang cầm, từ đầu chì
+    const t = h.t, P = compaPencil(t), size = penW || CONFIG.PEN_SIZES[sizeIdx];
+    cur = { tool:'pen', slot, col:slot === 6 ? customCol : undefined, size, line:false, flat:true, fixed:true, t0:Date.now(), pts:[r1(P.x), r1(P.y), 0.5, 0] };
+    if (penA < 1) cur.alpha = penA; if (penDash) { cur.dash = penDash; if (penGap !== 1) cur.gap = penGap; }
+    kdrag.arc = true; kdrag.sum = 0; kdrag.last = Math.atan2(w.y - t.y, w.x - t.x); kdrag.a = t.ang;
+  }
   invalidate(false);
 }
 function kitDrag(w, e){
   const t = kdrag.t;
+  if (t.type === 'compa') { compaDrag(t, w, e); return; }
   if (!kdrag.rot) { t.x = kdrag.tx + w.x - kdrag.x0; t.y = kdrag.ty + w.y - kdrag.y0; return; }
   const h = kitHandle(t), st = Math.PI / 12;          // xoay quanh điểm gốc của dụng cụ, tự bắt các góc bội của 15 độ
   let a = Math.atan2(w.y - t.y, w.x - t.x) - Math.atan2(h[1], h[0]); const n = Math.round(a / st) * st;
@@ -1656,6 +1671,7 @@ function snapStep(w, e){                              // nét đang bám dụng 
   p[7] = Date.now() - cur.t0; readout = { text, x:e.clientX - left, y:e.clientY - topPx };
 }
 function drawKit(c, t){
+  if (t.type === 'compa') { drawCompa(c, t); return; }
   const ink = BOARDS[board].ink[0], h = kitHandle(t);
   c.save(); c.translate(t.x, t.y); c.rotate(t.ang);
   c.fillStyle = board === 'white' ? 'rgba(40,90,170,.10)' : 'rgba(255,255,255,.14)'; c.strokeStyle = ink; c.lineWidth = 1.4; c.lineJoin = 'round';
@@ -1695,6 +1711,75 @@ function drawKit(c, t){
   c.restore();
 }
 
+/* ---------- Compa (v141): dùng như compa thật ----------
+   t = { type:'compa', x, y: chỗ đặt kim (tâm), ang: hướng từ kim tới đầu chì, r: bán kính (đơn vị bảng) }
+   - Kéo kim hoặc thân compa: dời compa (giữ nguyên độ mở).
+   - Kéo đầu chì: mở rộng / thu hẹp compa; số bán kính hiện bên cạnh (hút về từng 0,1 đơn vị).
+   - Kéo núm vàng trên đầu compa đi vòng quanh: compa quay quanh kim, đầu chì vẽ ra cung tròn bằng màu, cỡ, kiểu nét của bút đang cầm.
+     Quay đủ một vòng là thành đường tròn; nét vẽ ra là nét thường (hoàn tác, tẩy, chọn được như mọi nét). */
+const compaLeg = t => Math.max(260, t.r * 0.62);      // chiều dài mỗi chân compa (đủ dài để mở tới bán kính r)
+function compaGeo(t){                                 // các điểm của compa trong hệ toạ độ riêng: kim ở (0,0), đầu chì ở (r,0)
+  const L = compaLeg(t), hh = Math.sqrt(Math.max(1, L * L - t.r * t.r / 4));
+  return { P:[t.r, 0], H:[t.r / 2, -hh], K:[t.r / 2, -hh - 40] };   // H: khớp; K: núm cầm để quay
+}
+const compaPencil = t => toBoard(t, t.r, 0);
+function compaHit(t, w){
+  const q = toLocal(t, w), G = compaGeo(t), near = (a, d) => Math.hypot(q.x - a[0], q.y - a[1]) <= d / S();
+  if (near(G.K, 30)) return { t, kind:'cdraw' };                    // núm trên đầu: quay và vẽ
+  if (near(G.P, 26)) return { t, kind:'copen' };                    // đầu chì: đổi độ mở
+  if (near([0, 0], 26)) return { t, kind:'move' };                  // kim
+  const onLeg = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), u = ((q.x - a[0]) * dx + (q.y - a[1]) * dy) / l;
+    return u >= 0 && u <= l && Math.abs((q.x - a[0]) * dy - (q.y - a[1]) * dx) / l <= 16 / S(); };
+  if (onLeg([0, 0], G.H) || onLeg(G.P, G.H) || near(G.H, 22)) return { t, kind:'move' };   // thân compa
+  return null;
+}
+function compaDrag(t, w, e){
+  const k = kdrag.kind;
+  if (k === 'move') { t.x = kdrag.tx + w.x - kdrag.x0; t.y = kdrag.ty + w.y - kdrag.y0; return; }
+  if (k === 'copen') {                                // đầu chì đi theo tay: đổi bán kính và hướng
+    let r = Math.hypot(w.x - t.x, w.y - t.y); const rs = Math.round(r / (UNIT / 10)) * (UNIT / 10);
+    if (Math.abs(r - rs) < 2.5 / S()) r = rs;          // hút về từng 0,1 đơn vị cho số bán kính tròn
+    t.r = clamp(r, UNIT * 0.3, UNIT * 16); t.ang = Math.atan2(w.y - t.y, w.x - t.x);
+    readout = { text:'r = ' + fmt(t.r / UNIT), x:e.clientX - left, y:e.clientY - topPx }; return;
+  }
+  if (k === 'cdraw') {                                // quay quanh kim: cộng dồn góc quay, thêm điểm trên cung (mỗi bước ≤ 2°)
+    const a = Math.atan2(w.y - t.y, w.x - t.x); let d = a - kdrag.last; d -= Math.round(d / (2 * Math.PI)) * 2 * Math.PI; kdrag.last = a;
+    const lim = 2 * Math.PI + 0.002; d = clamp(kdrag.sum + d, -lim, lim) - kdrag.sum; if (!d) return;   // quay tối đa một vòng
+    const n = Math.max(1, Math.ceil(Math.abs(d) / (Math.PI / 90)));
+    for (let i = 1; i <= n; i++) { const b = kdrag.a + kdrag.sum + d * i / n; cur.pts.push(r1(t.x + t.r * Math.cos(b)), r1(t.y + t.r * Math.sin(b)), 0.5, Date.now() - cur.t0); }
+    kdrag.sum += d; t.ang = kdrag.a + kdrag.sum;
+    readout = { text:Math.round(Math.abs(kdrag.sum) * 180 / Math.PI) + '° · r = ' + fmt(t.r / UNIT), x:e.clientX - left, y:e.clientY - topPx };
+  }
+}
+function drawCompa(c, t){
+  const G = compaGeo(t), ink = BOARDS[board].ink[0], s = S(), dark = board !== 'white';
+  c.save(); c.translate(t.x, t.y); c.rotate(t.ang); c.lineCap = 'round'; c.lineJoin = 'round';
+  if (kdrag && kdrag.t === t && kdrag.kind === 'copen') {   // đang mở compa: hiện mờ đường tròn sẽ vẽ
+    c.globalAlpha = 0.35; c.strokeStyle = ink; c.lineWidth = 1.2 / s; c.setLineDash([6 / s, 6 / s]); c.beginPath(); c.arc(0, 0, t.r, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+  }
+  c.globalAlpha = 0.55; c.strokeStyle = ink; c.lineWidth = 1 / s; c.setLineDash([4 / s, 5 / s]); c.beginPath(); c.moveTo(0, 0); c.lineTo(t.r, 0); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;   // bán kính
+  const leg = (a, b, w0, w1, fill) => {                // một chân compa: hình thang thon dần từ khớp xuống mũi
+    const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = -dy / l, ny = dx / l;
+    c.beginPath(); c.moveTo(a[0] + nx * w0, a[1] + ny * w0); c.lineTo(b[0] + nx * w1, b[1] + ny * w1); c.lineTo(b[0] - nx * w1, b[1] - ny * w1); c.lineTo(a[0] - nx * w0, a[1] - ny * w0); c.closePath();
+    c.fillStyle = fill; c.fill(); c.lineWidth = 1.2; c.strokeStyle = 'rgba(0,0,0,.45)'; c.stroke();
+  };
+  const at = (A, B, k) => [A[0] + (B[0] - A[0]) * k, A[1] + (B[1] - A[1]) * k];
+  leg(G.H, at(G.H, [0, 0], 0.88), 9, 4, dark ? '#cfd5dc' : '#9aa3ad');                 // chân kim (kim loại)
+  c.beginPath(); c.moveTo(...at(G.H, [0, 0], 0.88)); c.lineTo(0, 0); c.lineWidth = 2.2; c.strokeStyle = dark ? '#eef2f6' : '#5d6670'; c.stroke();   // mũi kim
+  leg(G.H, at(G.H, G.P, 0.8), 9, 6, '#d9a441');                                        // chân chì
+  const pc = at(G.H, G.P, 0.8); c.beginPath(); c.moveTo(pc[0] - 6, pc[1]); c.lineTo(G.P[0], G.P[1]); c.lineTo(pc[0] + 6, pc[1]); c.closePath();
+  c.fillStyle = '#f0dcb4'; c.fill(); c.beginPath(); c.arc(G.P[0], G.P[1], 3.2, 0, 7); c.fillStyle = colOf({ tool:'pen', slot, col:slot === 6 ? customCol : undefined }); c.fill();   // ruột chì mang màu bút
+  c.beginPath(); c.arc(G.H[0], G.H[1], 11, 0, 7); c.fillStyle = dark ? '#aab3bd' : '#7b858f'; c.fill(); c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 1.5; c.stroke();   // khớp
+  c.beginPath(); c.moveTo(G.H[0], G.H[1] - 10); c.lineTo(G.K[0], G.K[1] + 12); c.lineWidth = 6; c.strokeStyle = dark ? '#aab3bd' : '#7b858f'; c.stroke();
+  c.beginPath(); c.roundRect ? c.roundRect(G.K[0] - 13, G.K[1] - 17, 26, 30, 8) : c.rect(G.K[0] - 13, G.K[1] - 17, 26, 30); c.fillStyle = SEL_COLOR; c.fill(); c.strokeStyle = 'rgba(0,0,0,.55)'; c.lineWidth = 1.5; c.stroke();   // núm cầm để quay
+  c.beginPath(); c.arc(G.K[0], G.K[1] - 2, 6.5, -2.6, 1.3); c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.arc(0, 0, 4, 0, 7); c.fillStyle = dark ? '#fff' : '#333'; c.fill();   // chấm tâm
+  // nhãn bán kính, luôn đặt chữ xuôi chiều đọc
+  c.rotate(-t.ang); const mx = t.r / 2 * Math.cos(t.ang), my = t.r / 2 * Math.sin(t.ang);
+  c.font = `600 ${14 / Math.max(s, 0.6)}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = ink; c.globalAlpha = 0.85;
+  const ox = -Math.sin(t.ang) * 16, oy = Math.cos(t.ang) * 16; c.fillText('r = ' + fmt(t.r / UNIT), mx + ox, my + oy);
+  c.restore();
+}
 /* ---------- Màn che: tấm che giấu một phần bảng, kéo thanh vàng ở mép để mở dần ---------- */
 const COVER_LOOK = { green:['#2b6350', '#286050', '#dfeee7'], black:['#262b31', '#22272c', '#d8dde3'], white:['#dcd9cd', '#d5d2c5', '#3a3f48'] };   // hai màu sọc và màu chữ theo nền bảng
 let covers = [], cdrag = null;                        // mỗi màn che: {id, x, y, w, h} theo đơn vị bảng
@@ -5884,7 +5969,7 @@ renderRecent();
 /* "Hay dùng" do thầy tự ghim: bấm nút bốn ô vuông trên thanh là thấy. Ghim được hình mẫu (S|tên), mô hình (M|loại) và các dụng cụ trong menu ⋯ (U|chỗ của nút trong menu).
    Muốn thêm một dụng cụ trong menu vào danh sách chọn được: thêm một dòng vào FAV_MENU bên dưới. */
 const FAV_KEY = 'dmath-slate-fav';
-const FAV_MENU = ['[data-kit="ruler"]', '[data-kit="eke"]', '[data-kit="pro"]', '#coverAdd', '#pinBtn', '#buddyAll', '[data-widget="clock"]', '[data-widget="timer"]', '[data-widget="spot"]', '#imgOpen', '#pdfOpen', '#calcLink', '#webBtn', '#recBtn', '#recsBtn', '#fullBtn', '#expPdf', '#expPng', '[data-pattern="grid"]', '[data-pattern="lines"]', '[data-pattern="none"]'];
+const FAV_MENU = ['[data-kit="ruler"]', '[data-kit="eke"]', '[data-kit="pro"]', '[data-kit="compa"]', '#coverAdd', '#pinBtn', '#buddyAll', '[data-widget="clock"]', '[data-widget="timer"]', '[data-widget="spot"]', '#imgOpen', '#pdfOpen', '#calcLink', '#webBtn', '#recBtn', '#recsBtn', '#fullBtn', '#expPdf', '#expPng', '[data-pattern="grid"]', '[data-pattern="lines"]', '[data-pattern="none"]'];
 let favs = ['S|Bảng biến thiên', 'S|Hệ trục Oxy', 'U|[data-kit="ruler"]', 'U|[data-kit="eke"]', 'U|#coverAdd', 'M|solid'];   // lúc đầu; thầy sửa bằng nút "Sửa"
 try { const r = JSON.parse(localStorage.getItem(FAV_KEY) || 'null'); if (Array.isArray(r)) favs = r; } catch (_) {}
 const favEl = sel => document.querySelector('#menu ' + sel);
@@ -6018,7 +6103,7 @@ ov.addEventListener('pointerdown', e => {
     const penBusy = (activeId !== null && !activeIsTouch) || penRecent() || isPalm(e) || tgDead;   // đang viết, vừa viết xong, vết chạm to, hay bút đã hạ trong lúc tay còn tì: đều là tay tì
     if (!penBusy && !touches.size) viewSnap = { tx:view.tx, ty:view.ty, zoom:view.zoom, t:performance.now() };
     if (!penBusy && activeId === null) { const mh = modelHit(toWorld(e), true); if (mh) { beginHandle(e, mh); return; } }   // ngón tay đặt lên điểm kéo của mô hình
-    if (!penBusy && activeId === null) { const h = kitHit(toWorld(e)); if (h && (h.kind === 'move' || h.kind === 'rot' || h.kind === 'ray')) { beginKit(e, h); return; } }   // ngón tay đặt lên dụng cụ: dời hoặc xoay nó (ngón tay trên thân thước đo độ cũng là dời)
+    if (!penBusy && activeId === null) { const h = kitHit(toWorld(e)); if (h && (h.kind === 'move' || h.kind === 'rot' || h.kind === 'ray' || h.kind === 'copen' || h.kind === 'cdraw')) { beginKit(e, h); return; } }   // ngón tay đặt lên dụng cụ: dời hoặc xoay nó (ngón tay trên thân thước đo độ cũng là dời)
     touches.set(e.pointerId, { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, ignore:penBusy }); gPrev = null;
     if (penBusy) return;
     if (fingerDraw && touches.size === 1 && activeId === null) begin(e);
@@ -6038,7 +6123,7 @@ ov.addEventListener('pointerdown', e => {
   if (activeId !== null) return;
   const mh = modelHit(toWorld(e)); if (mh) { beginHandle(e, mh); return; }
   const kh = kitHit(toWorld(e));
-  if (kh && (kh.kind === 'move' || kh.kind === 'rot')) { beginKit(e, kh); return; }
+  if (kh && (kh.kind === 'move' || kh.kind === 'rot' || kh.kind === 'copen' || kh.kind === 'cdraw')) { beginKit(e, kh); return; }
   begin(e);
 });
 ov.addEventListener('pointermove', e => {
@@ -6140,7 +6225,7 @@ function updateUI(){
   document.querySelectorAll('[data-widget]').forEach(b => b.setAttribute('aria-pressed', !!widgets[b.dataset.widget]));
   document.querySelectorAll('[data-tip]').forEach(b => b.setAttribute('aria-pressed', showTip && b.dataset.tip === tipStyle));
   document.documentElement.style.setProperty('--hint', BOARDS[board].hint);
-  $('hint').hidden = strokes.length > 0 || graphs.length > 0 || images.length > 0 || texts.length > 0 || !!ed || !!bg;
+  $('hint').hidden = strokes.length > 0 || graphs.length > 0 || images.length > 0 || texts.length > 0 || !!ed || !!bg || kit.length > 0;   // có dụng cụ (thước, compa…) trên bảng cũng tắt dòng chào
   updateNav();
 }
 function changed(){ updateUI(); invalidate(true); scheduleSave(); }
